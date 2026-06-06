@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 )
 

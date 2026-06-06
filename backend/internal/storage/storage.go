@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
-	pgRepo "github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository/postgres"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
+	pgRepo "github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository/postgres"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/postgres"
 )
 

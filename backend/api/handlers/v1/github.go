@@ -10,7 +10,7 @@ import (
 	"github.com/jira-backend/jiraflow-backend/api/handlers"
 	"github.com/jira-backend/jiraflow-backend/api/middleware"
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
-	ghinfra "github.com/jira-backend/jiraflow-backend/internal/infrastructura/github"
+	ghinfra "github.com/jira-backend/jiraflow-backend/internal/infrastructure/github"
 )
 
 // ConnectGitHubRepo godoc

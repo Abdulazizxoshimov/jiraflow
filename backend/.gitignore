@@ -1,0 +1,27 @@
+# Binary
+/bin/
+/dist/
+*.exe
+
+# Environment
+.env
+.env.local
+
+# Go artifacts
+vendor/
+*.test
+*.out
+coverage.html
+
+# Logs
+logs/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

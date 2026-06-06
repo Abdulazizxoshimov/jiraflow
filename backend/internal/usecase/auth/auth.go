@@ -9,7 +9,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
+	emailpkg "github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
 	apperr "github.com/jira-backend/jiraflow-backend/internal/pkg/errors"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/hasher"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
@@ -17,12 +18,14 @@ import (
 )
 
 type useCase struct {
-	userRepo repository.UserRepository
-	authRepo repository.AuthRepository
-	tokens   token.Maker
-	hasher   hasher.Hasher
-	resetTTL time.Duration
-	log      logger.Logger
+	userRepo    repository.UserRepository
+	authRepo    repository.AuthRepository
+	tokens      token.Maker
+	hasher      hasher.Hasher
+	resetTTL    time.Duration
+	email       emailpkg.Sender
+	frontendURL string
+	log         logger.Logger
 }
 
 func New(
@@ -31,15 +34,19 @@ func New(
 	tokens token.Maker,
 	h hasher.Hasher,
 	resetTTL time.Duration,
+	emailSender emailpkg.Sender,
+	frontendURL string,
 	log logger.Logger,
 ) UseCase {
 	return &useCase{
-		userRepo: userRepo,
-		authRepo: authRepo,
-		tokens:   tokens,
-		hasher:   h,
-		resetTTL: resetTTL,
-		log:      log,
+		userRepo:    userRepo,
+		authRepo:    authRepo,
+		tokens:      tokens,
+		hasher:      h,
+		resetTTL:    resetTTL,
+		email:       emailSender,
+		frontendURL: frontendURL,
+		log:         log,
 	}
 }
 
@@ -186,8 +193,16 @@ func (uc *useCase) ForgotPassword(ctx context.Context, req *entity.ForgotPasswor
 		uc.log.Error(ctx, "auth.ForgotPassword: store reset token failed", logger.String("user_id", user.ID), logger.SafeString("err", err.Error()))
 		return fmt.Errorf("auth.ForgotPassword: %w", err)
 	}
-	uc.log.Info(ctx, "auth.ForgotPassword: reset token created", logger.String("user_id", user.ID))
-	_ = rawToken
+
+	resetURL := uc.frontendURL + "/reset-password?token=" + rawToken
+	if err := uc.email.Send(ctx, []string{user.Email}, "Parolni tiklash", "password_reset", map[string]string{
+		"ResetURL": resetURL,
+	}); err != nil {
+		uc.log.Error(ctx, "auth.ForgotPassword: send email failed", logger.String("user_id", user.ID), logger.SafeString("err", err.Error()))
+		// email xatosi foydalanuvchiga qaytarilmaydi (timing attack oldini olish uchun)
+	}
+
+	uc.log.Info(ctx, "auth.ForgotPassword: reset email sent", logger.String("user_id", user.ID))
 	return nil
 }
 

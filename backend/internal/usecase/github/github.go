@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
-	ghinfra "github.com/jira-backend/jiraflow-backend/internal/infrastructura/github"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
+	ghinfra "github.com/jira-backend/jiraflow-backend/internal/infrastructure/github"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
 )
 
 type useCase struct {

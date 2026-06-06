@@ -3,9 +3,9 @@ package usecase
 import (
 	"time"
 
-	emailpkg "github.com/jira-backend/jiraflow-backend/internal/infrastructura/email"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/minio"
-	ws "github.com/jira-backend/jiraflow-backend/internal/infrastructura/websocket"
+	emailpkg "github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/minio"
+	ws "github.com/jira-backend/jiraflow-backend/internal/infrastructure/websocket"
 	"github.com/jira-backend/jiraflow-backend/internal/storage"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/hasher"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
@@ -67,7 +67,7 @@ import (
 	security_scheme "github.com/jira-backend/jiraflow-backend/internal/usecase/security_scheme"
 	telegram_uc "github.com/jira-backend/jiraflow-backend/internal/usecase/telegram"
 	github_uc "github.com/jira-backend/jiraflow-backend/internal/usecase/github"
-	tgclient "github.com/jira-backend/jiraflow-backend/internal/infrastructura/telegram"
+	tgclient "github.com/jira-backend/jiraflow-backend/internal/infrastructure/telegram"
 )
 
 // UseCases barcha usecase interfeyslari.
@@ -133,17 +133,18 @@ type UseCases struct {
 
 // Deps — UseCases uchun tashqi bog'liqliklar.
 type Deps struct {
-	Store              *storage.Storage
-	TokenMaker         token.Maker
-	Hasher             hasher.Hasher
-	Minio              minio.Client
-	Log                logger.Logger
-	Hub                *ws.Hub
-	EmailSender        emailpkg.Sender
-	GoogleClientID     string
-	GoogleClientSecret string
-	GoogleRedirectURL  string
-	TelegramBotToken   string
+	Store               *storage.Storage
+	TokenMaker          token.Maker
+	Hasher              hasher.Hasher
+	Minio               minio.Client
+	Log                 logger.Logger
+	Hub                 *ws.Hub
+	EmailSender         emailpkg.Sender
+	FrontendBaseURL     string
+	GoogleClientID      string
+	GoogleClientSecret  string
+	GoogleRedirectURL   string
+	TelegramBotToken      string
 	TelegramWebhookURL    string
 	TelegramWebhookSecret string
 }
@@ -160,7 +161,7 @@ func New(d Deps) *UseCases {
 	notification.SetTelegram(disp, telegramUC)
 
 	return &UseCases{
-		Auth:          auth.New(d.Store.User, d.Store.Auth, d.TokenMaker, d.Hasher, 24*time.Hour, d.Log),
+		Auth:          auth.New(d.Store.User, d.Store.Auth, d.TokenMaker, d.Hasher, 24*time.Hour, d.EmailSender, d.FrontendBaseURL, d.Log),
 		User:          user.New(d.Store.User, d.Store.Space, d.Hasher, d.Log),
 		Workflow:      workflow.New(d.Store.Workflow, d.Log),
 		Project:       project.New(d.Store.Project, d.Store.Workflow, d.Store.Space, d.Log),

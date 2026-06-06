@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	emailpkg "github.com/jira-backend/jiraflow-backend/internal/infrastructura/email"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
+	emailpkg "github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 )

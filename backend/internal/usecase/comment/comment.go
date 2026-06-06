@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/tiptap"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/tiptap"
 	apperr "github.com/jira-backend/jiraflow-backend/internal/pkg/errors"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 	"github.com/jira-backend/jiraflow-backend/internal/usecase/notification"

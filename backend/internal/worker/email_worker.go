@@ -7,8 +7,8 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/email"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/rabbitmq"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/rabbitmq"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 )
 

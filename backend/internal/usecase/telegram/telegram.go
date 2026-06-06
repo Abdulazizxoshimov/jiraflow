@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
-	tgclient "github.com/jira-backend/jiraflow-backend/internal/infrastructura/telegram"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
+	tgclient "github.com/jira-backend/jiraflow-backend/internal/infrastructure/telegram"
 	apperr "github.com/jira-backend/jiraflow-backend/internal/pkg/errors"
 )
 

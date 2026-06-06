@@ -12,11 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 	api "github.com/jira-backend/jiraflow-backend/api"
 	"github.com/jira-backend/jiraflow-backend/api/handlers"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/email"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/minio"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/rabbitmq"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/redis"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/websocket"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/minio"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/rabbitmq"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/redis"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/websocket"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/casbin"
 	"github.com/jira-backend/jiraflow-backend/internal/storage"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/config"
@@ -60,8 +60,7 @@ func Run(cfg *config.Config) error {
 		return fmt.Errorf("minio bucket: %w", err)
 	}
 
-	// emailSender initialises the shared template pool used by QueuedSender too.
-	_, err = email.New(cfg.Email, log)
+	directSender, err := email.New(cfg.Email, log)
 	if err != nil {
 		return fmt.Errorf("email: %w", err)
 	}
@@ -79,10 +78,7 @@ func Run(cfg *config.Config) error {
 	if mq != nil {
 		emailSender = email.NewQueuedSender(mq)
 	} else {
-		emailSender, err = email.New(cfg.Email, log)
-		if err != nil {
-			return fmt.Errorf("email fallback: %w", err)
-		}
+		emailSender = directSender
 	}
 
 	hub := websocket.NewHub(log)
@@ -116,6 +112,7 @@ func Run(cfg *config.Config) error {
 		Log:                   log,
 		Hub:                   hub,
 		EmailSender:           emailSender,
+		FrontendBaseURL:       cfg.App.FrontendBaseURL,
 		GoogleClientID:        cfg.OAuth.GoogleClientID,
 		GoogleClientSecret:    cfg.OAuth.GoogleClientSecret,
 		GoogleRedirectURL:     cfg.OAuth.GoogleRedirectURL,
@@ -198,8 +195,7 @@ func Run(cfg *config.Config) error {
 	go digest.Run(workerCtx, 8) // fires at 08:00 UTC daily
 
 	if mq != nil {
-		realSender, _ := email.New(cfg.Email, log)
-		emailWorker := worker.NewEmailWorker(mq, realSender, log)
+		emailWorker := worker.NewEmailWorker(mq, directSender, log)
 		go emailWorker.Run(workerCtx)
 	}
 

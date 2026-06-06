@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
 )
 
 // RequireProjectMember checks that the authenticated user is a member of the

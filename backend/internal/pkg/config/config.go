@@ -38,9 +38,10 @@ type OAuthConfig struct {
 }
 
 type AppConfig struct {
-	Port     string `json:"port"`
-	Env      string `json:"env"`
-	LogLevel string `json:"log_level"`
+	Port            string `json:"port"`
+	Env             string `json:"env"`
+	LogLevel        string `json:"log_level"`
+	FrontendBaseURL string `json:"frontend_base_url"`
 }
 
 type PostgresConfig struct {
@@ -112,9 +113,10 @@ type EmailConfig struct {
 func Load() *Config {
 	return &Config{
 		App: AppConfig{
-			Port:     getEnv("APP_PORT", "8080"),
-			Env:      getEnv("APP_ENV", "development"),
-			LogLevel: getEnv("LOG_LEVEL", "info"),
+			Port:            getEnv("APP_PORT", "8080"),
+			Env:             getEnv("APP_ENV", "development"),
+			LogLevel:        getEnv("LOG_LEVEL", "info"),
+			FrontendBaseURL: getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),
 		},
 		Postgres: PostgresConfig{
 			Host:              getEnv("DB_HOST", "localhost"),

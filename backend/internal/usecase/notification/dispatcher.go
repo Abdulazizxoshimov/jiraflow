@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/email"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
-	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/websocket"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/websocket"
 	tguc "github.com/jira-backend/jiraflow-backend/internal/usecase/telegram"
 )
 
