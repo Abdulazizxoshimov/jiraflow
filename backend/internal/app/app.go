@@ -8,8 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gin-gonic/gin"
+
 	api "github.com/jira-backend/jiraflow-backend/api"
 	"github.com/jira-backend/jiraflow-backend/api/handlers"
 	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
@@ -18,15 +21,14 @@ import (
 	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/redis"
 	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/websocket"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/casbin"
-	"github.com/jira-backend/jiraflow-backend/internal/storage"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/config"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/hasher"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/postgres"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/token"
+	"github.com/jira-backend/jiraflow-backend/internal/storage"
 	"github.com/jira-backend/jiraflow-backend/internal/usecase"
 	"github.com/jira-backend/jiraflow-backend/internal/worker"
-	"time"
 )
 
 func Run(cfg *config.Config) error {
@@ -37,7 +39,29 @@ func Run(cfg *config.Config) error {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	log := logger.New(cfg.App.LogLevel, "jiraflow", "v1")
+	log := logger.New(
+		cfg.App.LogLevel, "jiraflow", "v1",
+		logger.WithLoki(cfg.Loki.URL, map[string]string{
+			"app":         "jiraflow-backend",
+			"environment": cfg.App.Env,
+		}),
+	)
+	defer logger.Cleanup(log)
+
+	// ── Sentry ────────────────────────────────────────────────────────────────
+
+	if cfg.Sentry.DSN != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:              cfg.Sentry.DSN,
+			Environment:      cfg.App.Env,
+			TracesSampleRate: cfg.Sentry.TracesSampleRate,
+			AttachStacktrace: true,
+		}); err != nil {
+			log.Warn(context.Background(), "sentry init failed", logger.SafeString("err", err.Error()))
+		} else {
+			defer sentry.Flush(3 * time.Second)
+		}
+	}
 
 	// ── Infrastructure ────────────────────────────────────────────────────────
 

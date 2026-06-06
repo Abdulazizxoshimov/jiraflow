@@ -7,17 +7,9 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/jira-backend/jiraflow-backend/internal/pkg/loki"
 )
-
-const LogFilePath = "logs/app.log"
-
-// OpenLogFile opens (or creates) the app log file for writing.
-func OpenLogFile() (*os.File, error) {
-	if err := os.MkdirAll("logs", 0o755); err != nil {
-		return nil, err
-	}
-	return os.OpenFile(LogFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-}
 
 // ─── Levels ───────────────────────────────────────────────────────────────────
 
@@ -29,26 +21,6 @@ const (
 	LevelPanic = "panic"
 	LevelFatal = "fatal"
 )
-
-// LogLevelFromString ...
-func LogLevelFromString(level string) int {
-	switch level {
-	case LevelDebug:
-		return -1
-	case LevelInfo:
-		return 0
-	case LevelWarn:
-		return 1
-	case LevelError:
-		return 2
-	case LevelPanic:
-		return 4
-	case LevelFatal:
-		return 5
-	default:
-		return 0
-	}
-}
 
 // ─── Field helpers ────────────────────────────────────────────────────────────
 
@@ -63,14 +35,12 @@ var (
 	Any    = zap.Any
 )
 
-// SafeEmail masks email before logging.
-// john@example.com → j***@example.com
+// SafeEmail masks email before logging: john@example.com → j***@example.com
 func SafeEmail(key, email string) Field {
 	return zap.String(key, MaskEmail(email))
 }
 
-// SafePhone masks phone before logging.
-// +998901234567 → ***********67
+// SafePhone masks phone before logging: +998901234567 → ***********67
 func SafePhone(key, phone string) Field {
 	return zap.String(key, MaskPhone(phone))
 }
@@ -82,9 +52,6 @@ func SafeString(key, value string) Field {
 
 // ─── Logger interface ─────────────────────────────────────────────────────────
 
-// FIX 1: Barcha metodlar endi context.Context qabul qiladi.
-// Bu trace_id, span_id, user_id ni har bir logda majburiy qiladi.
-// Developer context uzatmasa — kompilyator xato beradi.
 type Logger interface {
 	Debug(ctx context.Context, msg string, fields ...Field)
 	Info(ctx context.Context, msg string, fields ...Field)
@@ -93,34 +60,52 @@ type Logger interface {
 	Fatal(ctx context.Context, msg string, fields ...Field)
 }
 
-type loggerImpl struct {
-	zap *zap.Logger
+// ─── Options ──────────────────────────────────────────────────────────────────
+
+type Option func(*loggerImpl)
+
+// WithLoki attaches a Loki core that ships warn+ logs to the given Loki URL.
+func WithLoki(lokiURL string, labels map[string]string) Option {
+	return func(l *loggerImpl) {
+		if lokiURL == "" {
+			return
+		}
+		lokiCore := loki.New(lokiURL, labels, zapcore.WarnLevel)
+		l.zap = l.zap.WithOptions(zap.WrapCore(func(existing zapcore.Core) zapcore.Core {
+			return zapcore.NewTee(existing, lokiCore)
+		}))
+		l.lokiCore = lokiCore
+	}
 }
 
-// New creates a structured JSON logger.
-//
-//	log := logger.New("info", "grpc", "payment-service")
-func New(level, namespace, serviceName string) Logger {
+// ─── Implementation ───────────────────────────────────────────────────────────
+
+type loggerImpl struct {
+	zap      *zap.Logger
+	lokiCore *loki.Core
+}
+
+// New creates a structured JSON logger that writes to stdout only.
+// Pass WithLoki(...) to additionally ship logs to Grafana Loki.
+func New(level, namespace, serviceName string, opts ...Option) Logger {
 	if level == "" {
 		level = LevelInfo
 	}
-
-	l := loggerImpl{
+	l := &loggerImpl{
 		zap: newZapLogger(level),
 	}
 	l.zap = l.zap.Named(namespace)
-
 	if serviceName != "" {
 		l.zap = l.zap.With(zap.String("service_name", serviceName))
 	}
-
 	zap.RedirectStdLog(l.zap)
-	return &l
+
+	for _, opt := range opts {
+		opt(l)
+	}
+	return l
 }
 
-// FIX 1 + FIX 2: Har bir metod ctx dan trace_id, span_id, user_id ni
-// avtomatik o'qiydi. Interceptor endi faqat contextga yozadi,
-// logger o'zi o'qiydi — yagona manba (single source of truth).
 func (l *loggerImpl) Debug(ctx context.Context, msg string, fields ...Field) {
 	l.zap.Debug(msg, l.fromCtx(ctx, fields)...)
 }
@@ -141,11 +126,9 @@ func (l *loggerImpl) Fatal(ctx context.Context, msg string, fields ...Field) {
 	l.zap.Fatal(msg, l.fromCtx(ctx, fields)...)
 }
 
-// fromCtx — contextdan majburiy fieldlarni olib, extra fieldlar bilan birlashtiradi.
-// Bu FIX 2 ning yuragi: trace ma'lumoti faqat contextdan keladi.
+// fromCtx extracts trace_id, span_id, user_id from context and prepends them.
 func (l *loggerImpl) fromCtx(ctx context.Context, extra []Field) []Field {
 	fields := make([]Field, 0, 3+len(extra))
-
 	if v, _ := ctx.Value(traceIDKey).(string); v != "" {
 		fields = append(fields, zap.String("trace_id", v))
 	}
@@ -155,62 +138,50 @@ func (l *loggerImpl) fromCtx(ctx context.Context, extra []Field) []Field {
 	if v, _ := ctx.Value(userIDKey).(string); v != "" {
 		fields = append(fields, zap.String("user_id", v))
 	}
-
 	return append(fields, extra...)
 }
 
-// ─── Logger utility functions ─────────────────────────────────────────────────
+// ─── Utility functions ────────────────────────────────────────────────────────
 
-// GetNamed ...
 func GetNamed(l Logger, name string) Logger {
-	switch v := l.(type) {
-	case *loggerImpl:
-		return &loggerImpl{zap: v.zap.Named(name)}
-	default:
-		l.Info(context.Background(), "logger.GetNamed: invalid logger type")
-		return l
+	if v, ok := l.(*loggerImpl); ok {
+		return &loggerImpl{zap: v.zap.Named(name), lokiCore: v.lokiCore}
 	}
+	return l
 }
 
-// WithFields returns a child logger with permanent extra fields.
 func WithFields(l Logger, fields ...Field) Logger {
-	switch v := l.(type) {
-	case *loggerImpl:
-		return &loggerImpl{zap: v.zap.With(fields...)}
-	default:
-		l.Info(context.Background(), "logger.WithFields: invalid logger type")
-		return l
+	if v, ok := l.(*loggerImpl); ok {
+		return &loggerImpl{zap: v.zap.With(fields...), lokiCore: v.lokiCore}
 	}
+	return l
 }
 
-// Cleanup flushes buffered log entries. Call on shutdown.
+// Cleanup flushes buffered log entries (stdout + Loki). Call on shutdown.
 func Cleanup(l Logger) error {
-	switch v := l.(type) {
-	case *loggerImpl:
+	if v, ok := l.(*loggerImpl); ok {
+		if v.lokiCore != nil {
+			v.lokiCore.Stop()
+		}
 		return v.zap.Sync()
-	default:
-		l.Info(context.Background(), "logger.Cleanup: invalid logger type")
-		return nil
 	}
+	return nil
 }
 
-// GetZapLogger extracts raw zap logger (for third-party integrations).
 func GetZapLogger(l Logger) *zap.Logger {
 	if l == nil {
 		return newZapLogger(LevelInfo)
 	}
-	switch v := l.(type) {
-	case *loggerImpl:
+	if v, ok := l.(*loggerImpl); ok {
 		return v.zap
-	default:
-		return newZapLogger(LevelInfo)
 	}
+	return newZapLogger(LevelInfo)
 }
 
 // ─── Zap internals ────────────────────────────────────────────────────────────
 
 func newZapLogger(level string) *zap.Logger {
-	globalLevel := parseLevel(level)
+	atomicLevel := zap.NewAtomicLevelAt(parseLevel(level))
 
 	encoderCfg := zap.NewProductionEncoderConfig()
 	encoderCfg.TimeKey = "timestamp"
@@ -219,27 +190,15 @@ func newZapLogger(level string) *zap.Logger {
 	encoderCfg.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 		enc.AppendString(t.UTC().Format(time.RFC3339Nano))
 	}
-	encoderCfg.EncodeLevel = zapcore.CapitalLevelEncoder
+	encoderCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
-	jsonEncoder := zapcore.NewJSONEncoder(encoderCfg)
-
-	consoleCfg := encoderCfg
-	consoleCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	consoleEncoder := zapcore.NewConsoleEncoder(consoleCfg)
-
-	atomicLevel := zap.NewAtomicLevelAt(globalLevel)
-
-	cores := []zapcore.Core{
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), atomicLevel),
-	}
-	if f, err := OpenLogFile(); err == nil {
-		cores = append(cores, zapcore.NewCore(jsonEncoder, zapcore.AddSync(f), atomicLevel))
-	}
-
-	return zap.New(zapcore.NewTee(cores...),
-		zap.AddCaller(),
-		zap.AddCallerSkip(1),
+	consoleCore := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(encoderCfg),
+		zapcore.AddSync(os.Stdout),
+		atomicLevel,
 	)
+
+	return zap.New(consoleCore, zap.AddCaller(), zap.AddCallerSkip(1))
 }
 
 func parseLevel(level string) zapcore.Level {

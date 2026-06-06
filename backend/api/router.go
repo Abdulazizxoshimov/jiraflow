@@ -17,6 +17,7 @@ func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enf
 	r := gin.New()
 
 	r.Use(
+		middleware.Sentry(),
 		middleware.RequestID(),
 		gin.Logger(),
 		middleware.Logger(log),

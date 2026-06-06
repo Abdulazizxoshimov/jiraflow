@@ -60,8 +60,31 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    ports:
+      - "3030:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../deployments/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - loki
+
 volumes:
   pg_data:
   redis_data:
   minio_data:
   rabbitmq_data:
+  loki_data:
+  grafana_data:

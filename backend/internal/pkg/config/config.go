@@ -17,6 +17,17 @@ type Config struct {
 	OAuth    OAuthConfig    `json:"oauth"`
 	Telegram TelegramConfig `json:"telegram"`
 	GitHub   GitHubConfig   `json:"github"`
+	Sentry   SentryConfig   `json:"sentry"`
+	Loki     LokiConfig     `json:"loki"`
+}
+
+type SentryConfig struct {
+	DSN              string  `json:"dsn"`
+	TracesSampleRate float64 `json:"traces_sample_rate"`
+}
+
+type LokiConfig struct {
+	URL string `json:"url"`
 }
 
 type TelegramConfig struct {
@@ -173,6 +184,13 @@ func Load() *Config {
 			ClientID:      getEnv("GITHUB_CLIENT_ID", ""),
 			ClientSecret:  getEnv("GITHUB_CLIENT_SECRET", ""),
 		},
+		Sentry: SentryConfig{
+			DSN:              getEnv("SENTRY_DSN", ""),
+			TracesSampleRate: getEnvFloat("SENTRY_TRACES_SAMPLE_RATE", 0.2),
+		},
+		Loki: LokiConfig{
+			URL: getEnv("LOKI_URL", ""),
+		},
 	}
 }
 
@@ -217,4 +235,16 @@ func getEnvDuration(key string, def time.Duration) time.Duration {
 		return def
 	}
 	return d
+}
+
+func getEnvFloat(key string, def float64) float64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return def
+	}
+	return f
 }
