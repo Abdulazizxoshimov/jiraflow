@@ -1,0 +1,130 @@
+package storage
+
+import (
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository"
+	pgRepo "github.com/jira-backend/jiraflow-backend/internal/infrastructura/repository/postgres"
+	"github.com/jira-backend/jiraflow-backend/internal/pkg/postgres"
+)
+
+// Storage barcha repository implementatsiyalarini bir joyda saqlaydi.
+type Storage struct {
+	User          repository.UserRepository
+	Auth          repository.AuthRepository
+	Workflow      repository.WorkflowRepository
+	Project       repository.ProjectRepository
+	ProjectMember repository.ProjectMemberRepository
+	Invite        repository.InviteRepository
+	Sprint        repository.SprintRepository
+	Issue         repository.IssueRepository
+	IssueLink     repository.IssueLinkRepository
+	Worklog       repository.WorklogRepository
+	Component     repository.ComponentRepository
+	Version       repository.VersionRepository
+	Label         repository.LabelRepository
+	CustomField   repository.CustomFieldRepository
+	Board         repository.BoardRepository
+	Comment       repository.CommentRepository
+	Attachment    repository.AttachmentRepository
+	Space           repository.SpaceRepository
+	Page            repository.PageRepository
+	PageVersion     repository.PageVersionRepository
+	PageTag         repository.PageTagRepository
+	PageView        repository.PageViewRepository
+	PageTemplate    repository.PageTemplateRepository
+	PageRestriction repository.PageRestrictionRepository
+	InlineComment   repository.InlineCommentRepository
+	Favorite        repository.FavoriteRepository
+	Notification    repository.NotificationRepository
+	Search          repository.SearchRepository
+	Audit           repository.AuditRepository
+	IssueAssignee   repository.IssueAssigneeRepository
+	PageReaction    repository.PageReactionRepository
+	Webhook         repository.WebhookRepository
+	PageLock        repository.PageLockRepository
+	PageMacro       repository.PageMacroRepository
+	IssuePageLink    repository.IssuePageLinkRepository
+	ActivityFeed     repository.ActivityFeedRepository
+	OAuth            repository.OAuthRepository
+	APIKey           repository.APIKeyRepository
+	PermissionScheme repository.PermissionSchemeRepository
+	DataImport          repository.DataImportRepository
+	IssueVote           repository.IssueVoteRepository
+	BlogPost            repository.BlogPostRepository
+	SavedFilter         repository.SavedFilterRepository
+	SpaceExport         repository.SpaceExportRepository
+	SpaceCategory       repository.SpaceCategoryRepository
+	ContentProperty     repository.ContentPropertyRepository
+	Blueprint           repository.BlueprintRepository
+	IssueType           repository.IssueTypeRepository
+	NotificationScheme  repository.NotificationSchemeRepository
+	ProjectTemplate     repository.ProjectTemplateRepository
+	FieldConfiguration  repository.FieldConfigurationRepository
+	SecurityScheme      repository.SecuritySchemeRepository
+	Automation          repository.AutomationRepository
+	Telegram            repository.TelegramRepository
+	GitHubRepo          repository.GitHubRepoRepository
+	IssueCommit         repository.IssueCommitRepository
+	IssuePR             repository.IssuePRRepository
+}
+
+func New(pg *postgres.Postgres) *Storage {
+	return &Storage{
+		User:          pgRepo.NewUserRepo(pg),
+		Auth:          pgRepo.NewAuthRepo(pg),
+		Workflow:      pgRepo.NewWorkflowRepo(pg),
+		Project:       pgRepo.NewProjectRepo(pg),
+		ProjectMember: pgRepo.NewProjectMemberRepo(pg),
+		Invite:        pgRepo.NewInviteRepo(pg),
+		Sprint:        pgRepo.NewSprintRepo(pg),
+		Issue:         pgRepo.NewIssueRepo(pg),
+		IssueLink:     pgRepo.NewIssueLinkRepo(pg),
+		Worklog:       pgRepo.NewWorklogRepo(pg),
+		Component:     pgRepo.NewComponentRepo(pg),
+		Version:       pgRepo.NewVersionRepo(pg),
+		Label:         pgRepo.NewLabelRepo(pg),
+		CustomField:   pgRepo.NewCustomFieldRepo(pg),
+		Board:         pgRepo.NewBoardRepo(pg),
+		Comment:       pgRepo.NewCommentRepo(pg),
+		Attachment:    pgRepo.NewAttachmentRepo(pg),
+		Space:           pgRepo.NewSpaceRepo(pg),
+		Page:            pgRepo.NewPageRepo(pg),
+		PageVersion:     pgRepo.NewPageVersionRepo(pg),
+		PageTag:         pgRepo.NewPageTagRepo(pg),
+		PageView:        pgRepo.NewPageViewRepo(pg),
+		PageTemplate:    pgRepo.NewPageTemplateRepo(pg),
+		PageRestriction: pgRepo.NewPageRestrictionRepo(pg),
+		InlineComment:   pgRepo.NewInlineCommentRepo(pg),
+		Favorite:        pgRepo.NewFavoriteRepo(pg),
+		Notification:    pgRepo.NewNotificationRepo(pg),
+		Search:          pgRepo.NewSearchRepo(pg),
+		Audit:           pgRepo.NewAuditRepo(pg),
+		IssueAssignee:   pgRepo.NewIssueAssigneeRepo(pg),
+		PageReaction:    pgRepo.NewPageReactionRepo(pg),
+		Webhook:         pgRepo.NewWebhookRepo(pg),
+		PageLock:        pgRepo.NewPageLockRepo(pg),
+		PageMacro:       pgRepo.NewPageMacroRepo(pg),
+		IssuePageLink:    pgRepo.NewIssuePageLinkRepo(pg),
+		ActivityFeed:     pgRepo.NewActivityFeedRepo(pg),
+		OAuth:            pgRepo.NewOAuthRepo(pg),
+		APIKey:           pgRepo.NewAPIKeyRepo(pg),
+		PermissionScheme: pgRepo.NewPermissionSchemeRepo(pg),
+		DataImport:       pgRepo.NewDataImportRepo(pg),
+		IssueVote:        pgRepo.NewIssueVoteRepo(pg),
+		BlogPost:         pgRepo.NewBlogPostRepo(pg),
+		SavedFilter:        pgRepo.NewSavedFilterRepo(pg),
+		SpaceExport:        pgRepo.NewSpaceExportRepo(pg),
+		SpaceCategory:      pgRepo.NewSpaceCategoryRepo(pg),
+		ContentProperty:    pgRepo.NewContentPropertyRepo(pg),
+		Blueprint:          pgRepo.NewBlueprintRepo(pg),
+		IssueType:          pgRepo.NewIssueTypeRepo(pg),
+		NotificationScheme: pgRepo.NewNotificationSchemeRepo(pg),
+		ProjectTemplate:    pgRepo.NewProjectTemplateRepo(pg),
+		FieldConfiguration: pgRepo.NewFieldConfigurationRepo(pg),
+		SecurityScheme:     pgRepo.NewSecuritySchemeRepo(pg),
+		Automation:         pgRepo.NewAutomationRepo(pg),
+		Telegram:           pgRepo.NewTelegramRepo(pg),
+		GitHubRepo:         pgRepo.NewGitHubRepoRepo(pg),
+		IssueCommit:        pgRepo.NewIssueCommitRepo(pg),
+		IssuePR:            pgRepo.NewIssuePRRepo(pg),
+	}
+}

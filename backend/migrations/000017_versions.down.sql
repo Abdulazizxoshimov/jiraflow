@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS issue_versions CASCADE;
+DROP TABLE IF EXISTS project_versions CASCADE;

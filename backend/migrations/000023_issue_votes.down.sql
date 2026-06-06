@@ -1,0 +1,2 @@
+ALTER TABLE issues DROP COLUMN IF EXISTS vote_count;
+DROP TABLE IF EXISTS issue_votes;

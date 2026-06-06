@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS workflow_transitions CASCADE;
+DROP TABLE IF EXISTS workflow_statuses CASCADE;
+DROP TABLE IF EXISTS workflows CASCADE;

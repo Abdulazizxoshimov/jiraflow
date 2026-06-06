@@ -1,0 +1,19 @@
+# Go
+backend/bin/
+backend/logs/
+backend/*.env
+backend/.env*
+
+# Env files
+.env
+.env.*
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

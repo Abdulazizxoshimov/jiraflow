@@ -1,0 +1,367 @@
+jiraflow-backend/
+│
+├── cmd/
+│   └── main.go                          # Dastur kirish nuqtasi
+│
+├── api/                                 # HTTP qatlam (Delivery layer)
+│   ├── router.go                        # Route'larni bog'lash
+│   ├── server.go                        # HTTP server sozlamasi
+│   ├── handlers/
+│   │   ├── handler.go                   # Handler baza struct
+│   │   └── v1/                          # API v1 handler'lari
+│   │       ├── auth.go                  # Login, refresh, logout, forgot/reset password
+│   │       ├── user.go                  # Profile, users CRUD
+│   │       ├── invite.go                # Invite link bilan ro'yxatdan o'tish
+│   │       │
+│   │       ├── workspace.go             # (ixtiyoriy) — tenant/workspace darajasi
+│   │       │
+│   │       ├── project.go               # Loyihalar
+│   │       ├── project_member.go        # Loyiha a'zolari
+│   │       ├── custom_field.go          # Custom fields (loyiha sozlamalari)
+│   │       │
+│   │       ├── workflow.go              # Workflow CRUD
+│   │       ├── workflow_status.go       # Holatlar
+│   │       ├── workflow_transition.go   # O'tishlar
+│   │       │
+│   │       ├── issue.go                 # Vazifalar (CRUD, listing, filter)
+│   │       ├── issue_transition.go      # Status o'zgartirish
+│   │       ├── issue_link.go            # Vazifalar orasidagi bog'lanishlar
+│   │       ├── issue_watcher.go         # Kuzatuvchilar
+│   │       ├── issue_history.go         # Tarix
+│   │       ├── label.go                 # Teglar
+│   │       │
+│   │       ├── sprint.go                # Sprint CRUD, start, complete
+│   │       │
+│   │       ├── board.go                 # Board konfiguratsiyasi
+│   │       ├── board_column.go          # Ustunlar
+│   │       │
+│   │       ├── space.go                 # Confluence spaces
+│   │       ├── space_member.go          # Space a'zolari
+│   │       ├── page.go                  # Sahifalar (CRUD, tree)
+│   │       ├── page_version.go          # Versiyalar
+│   │       │
+│   │       ├── comment.go               # Izohlar (issue va page uchun)
+│   │       │
+│   │       ├── attachment.go            # Fayllarni yuklash
+│   │       ├── file.go                  # Fayllarni olish (signed URL)
+│   │       │
+│   │       ├── notification.go          # Bildirishnomalar
+│   │       ├── search.go                # Global qidiruv
+│   │       └── audit.go                 # Audit log (faqat admin)
+│   │
+│   ├── middleware/
+│   │   ├── auth.go                      # JWT validatsiya, foydalanuvchini context'ga
+│   │   ├── rbac.go                      # Casbin orqali ruxsatlar
+│   │   ├── caching.go                   # Redis kesh middleware
+│   │   ├── rate_limit.go                # Rate limiting (login va API uchun)
+│   │   ├── logging.go                   # Request logger
+│   │   ├── recover.go                   # Panic recovery
+│   │   ├── cors.go                      # CORS sozlamalari
+│   │   └── request_id.go                # X-Request-ID
+│   │
+│   └── http_status/
+│       ├── message.go                   # Xato xabarlari (i18n: uz/ru/en)
+│       ├── response.go                  # Response struct'lar (envelope)
+│       ├── status.go                    # HTTP status kodlar
+│       └── errors.go                    # AppError tipi (code, message, details)
+│
+├── internal/                            # Ichki logika
+│   ├── app/
+│   │   └── app.go                       # DI — barcha bog'liqliklarni yig'ish
+│   │
+│   ├── entity/                          # Domain model'lar
+│   │   ├── auth.go                      # LoginRequest, TokenPair, Claims
+│   │   ├── user.go                      # User, UserProfile, UserRole
+│   │   ├── refresh_token.go             # Sessiya tokenlari
+│   │   ├── invite.go                    # Invite link
+│   │   ├── password_reset.go
+│   │   │
+│   │   ├── project.go                   # Project + key, lead, archived
+│   │   ├── project_member.go            # ProjectMember + role
+│   │   ├── custom_field.go              # CustomField + field_type, options
+│   │   │
+│   │   ├── workflow.go                  # Workflow
+│   │   ├── workflow_status.go           # WorkflowStatus + category (todo/in_progress/done)
+│   │   ├── workflow_transition.go       # WorkflowTransition
+│   │   │
+│   │   ├── issue.go                     # Issue (asosiy struct, custom_fields JSON)
+│   │   ├── issue_link.go                # IssueLink + link_type
+│   │   ├── issue_watcher.go
+│   │   ├── issue_history.go             # IssueHistoryEntry
+│   │   ├── label.go
+│   │   │
+│   │   ├── sprint.go                    # Sprint + status (planned/active/completed)
+│   │   │
+│   │   ├── board.go                     # Board + type (kanban/scrum) + filter
+│   │   ├── board_column.go              # BoardColumn + statuses
+│   │   │
+│   │   ├── space.go                     # Space + type (team/personal/project)
+│   │   ├── space_member.go
+│   │   ├── page.go                      # Page + content JSON (TipTap)
+│   │   ├── page_version.go
+│   │   │
+│   │   ├── comment.go                   # Comment (polymorphic: issue/page)
+│   │   ├── comment_mention.go
+│   │   │
+│   │   ├── attachment.go                # Attachment (polymorphic)
+│   │   │
+│   │   ├── notification.go              # Notification + type + payload
+│   │   ├── notification_preference.go
+│   │   │
+│   │   ├── audit_log.go                 # AuditLog
+│   │   ├── search.go                    # SearchResult, SearchFilter
+│   │   ├── file.go                      # FileMetadata
+│   │   └── common.go                    # Pagination, Filter, SortOrder
+│   │
+│   ├── usecase/                         # Biznes logika (Clean Architecture)
+│   │   ├── auth/
+│   │   │   ├── interface.go             # AuthRepository, TokenService interfaces
+│   │   │   └── auth.go                  # Login, Refresh, Logout, ResetPassword
+│   │   │
+│   │   ├── user/
+│   │   │   ├── interface.go
+│   │   │   └── user.go                  # GetProfile, UpdateProfile, ListUsers, Invite
+│   │   │
+│   │   ├── invite/
+│   │   │   ├── interface.go
+│   │   │   └── invite.go                # CreateInvite, AcceptInvite
+│   │   │
+│   │   ├── project/
+│   │   │   ├── interface.go
+│   │   │   └── project.go               # CRUD + Archive + ListByUser
+│   │   │
+│   │   ├── project_member/
+│   │   │   ├── interface.go
+│   │   │   └── project_member.go        # AddMember, RemoveMember, ChangeRole
+│   │   │
+│   │   ├── custom_field/
+│   │   │   ├── interface.go
+│   │   │   └── custom_field.go
+│   │   │
+│   │   ├── workflow/
+│   │   │   ├── interface.go
+│   │   │   └── workflow.go              # CRUD workflow + statuses + transitions
+│   │   │
+│   │   ├── issue/
+│   │   │   ├── interface.go
+│   │   │   └── issue.go                 # Create, Update, Transition, Delete
+│   │   │                                # (issue_number generator, history yozish)
+│   │   ├── issue_link/
+│   │   │   ├── interface.go
+│   │   │   └── issue_link.go
+│   │   │
+│   │   ├── label/
+│   │   │   ├── interface.go
+│   │   │   └── label.go
+│   │   │
+│   │   ├── sprint/
+│   │   │   ├── interface.go
+│   │   │   └── sprint.go                # Start, Complete, AddIssue, RemoveIssue
+│   │   │
+│   │   ├── board/
+│   │   │   ├── interface.go
+│   │   │   └── board.go                 # GetBoardData (columns + issues)
+│   │   │
+│   │   ├── space/
+│   │   │   ├── interface.go
+│   │   │   └── space.go
+│   │   │
+│   │   ├── page/
+│   │   │   ├── interface.go
+│   │   │   ├── page.go                  # CRUD + ContentText ajratish
+│   │   │   └── tree.go                  # Page tree (parent/children)
+│   │   │
+│   │   ├── page_version/
+│   │   │   ├── interface.go
+│   │   │   └── page_version.go          # CreateVersion, ListVersions, Restore
+│   │   │
+│   │   ├── comment/
+│   │   │   ├── interface.go
+│   │   │   ├── comment.go               # Polymorphic logika
+│   │   │   └── mention.go               # @mention parse va notification
+│   │   │
+│   │   ├── attachment/
+│   │   │   ├── interface.go
+│   │   │   └── attachment.go
+│   │   │
+│   │   ├── notification/
+│   │   │   ├── interface.go
+│   │   │   ├── notification.go          # Yaratish, o'qish, sozlamalar
+│   │   │   └── dispatcher.go            # Trigger -> notification (assign, mention, va h.k.)
+│   │   │
+│   │   ├── search/
+│   │   │   ├── interface.go
+│   │   │   └── search.go                # PostgreSQL FTS bo'yicha qidiruv
+│   │   │
+│   │   ├── file/
+│   │   │   ├── interface.go
+│   │   │   └── file.go                  # Upload, Download, signed URL
+│   │   │
+│   │   └── audit/
+│   │       ├── interface.go
+│   │       └── audit.go                 # AuditLog yozish (event bus orqali)
+│   │
+│   ├── infrastructura/                  # Tashqi bog'liqliklar
+│   │   ├── repository/
+│   │   │   ├── auth.go                  # AuthRepository interface
+│   │   │   ├── user.go
+│   │   │   ├── invite.go
+│   │   │   ├── project.go
+│   │   │   ├── project_member.go
+│   │   │   ├── custom_field.go
+│   │   │   ├── workflow.go
+│   │   │   ├── issue.go
+│   │   │   ├── issue_link.go
+│   │   │   ├── label.go
+│   │   │   ├── sprint.go
+│   │   │   ├── board.go
+│   │   │   ├── space.go
+│   │   │   ├── page.go
+│   │   │   ├── page_version.go
+│   │   │   ├── comment.go
+│   │   │   ├── attachment.go
+│   │   │   ├── notification.go
+│   │   │   ├── search.go
+│   │   │   ├── audit.go
+│   │   │   └── postgres/                # PostgreSQL implementatsiyalar
+│   │   │       ├── auth.go
+│   │   │       ├── user.go
+│   │   │       ├── invite.go
+│   │   │       ├── project.go
+│   │   │       ├── project_member.go
+│   │   │       ├── custom_field.go
+│   │   │       ├── workflow.go
+│   │   │       ├── issue.go             # Atomic issue_number generator (UPDATE ... RETURNING)
+│   │   │       ├── issue_link.go
+│   │   │       ├── label.go
+│   │   │       ├── sprint.go
+│   │   │       ├── board.go
+│   │   │       ├── space.go
+│   │   │       ├── page.go
+│   │   │       ├── page_version.go
+│   │   │       ├── comment.go
+│   │   │       ├── attachment.go
+│   │   │       ├── notification.go
+│   │   │       ├── search.go            # tsvector + ts_rank query'lari
+│   │   │       └── audit.go
+│   │   │
+│   │   ├── redis/
+│   │   │   ├── redis.go                 # Redis ulanish
+│   │   │   ├── cache.go                 # Generic kesh (Get/Set/Del)
+│   │   │   └── session.go               # Active sessiya keshi
+│   │   │
+│   │   ├── minio/
+│   │   │   └── minio.go                 # Fayl saqlash (S3-compatible)
+│   │   │
+│   │   ├── email/
+│   │   │   ├── email.go                 # SMTP client (interface)
+│   │   │   └── templates/               # HTML email shablonlari
+│   │   │       ├── invite.html
+│   │   │       ├── password_reset.html
+│   │   │       ├── notification_assigned.html
+│   │   │       ├── notification_mentioned.html
+│   │   │       └── daily_digest.html
+│   │   │
+│   │   ├── amqp/
+│   │   │   ├── amqp.go                  # RabbitMQ ulanish
+│   │   │   ├── publisher.go             # Event chiqarish
+│   │   │   └── consumer.go              # Worker (email yuborish, notification)
+│   │   │
+│   │   ├── websocket/
+│   │   │   ├── websocket.go             # Hub + Client
+│   │   │   └── notify.go                # Real-time notification push
+│   │   │
+│   │   └── tiptap/
+│   │       ├── tiptap.go                # TipTap JSON ↔ plain text konvertor
+│   │       └── validator.go             # Content schema validatsiyasi
+│   │
+│   └── pkg/                             # Umumiy yordamchi paketlar
+│       ├── config/
+│       │   ├── config.go                # Konfiguratsiyani yuklash
+│       │   └── config.csv               # Env -> field mapping
+│       │
+│       ├── casbin/
+│       │   ├── casbin.go                # RBAC enforcer
+│       │   ├── model.conf               # Casbin model
+│       │   └── policy.csv               # Boshlang'ich policy
+│       │
+│       ├── token/
+│       │   ├── jwt.go                   # Access/refresh token generatsiya, parse
+│       │   └── claims.go                # Custom claims (user_id, role)
+│       │
+│       ├── hasher/
+│       │   └── bcrypt.go                # Parol hash/verify
+│       │
+│       ├── validator/
+│       │   └── validator.go             # go-playground/validator wrapper
+│       │
+│       ├── helper/
+│       │   ├── helper.go                # Umumiy yordamchi funksiyalar
+│       │   ├── pagination.go            # Limit/offset, cursor
+│       │   ├── slug.go                  # Slug generator (key uchun)
+│       │   ├── markdown.go              # Markdown -> plain text
+│       │   └── sanitizer.go             # bluemonday HTML sanitizer
+│       │
+│       ├── logger/
+│       │   └── logger.go                # slog wrapper
+│       │
+│       ├── postgres/
+│       │   ├── postgres.go              # pgx pool, connection
+│       │   └── transaction.go           # Tx helper (uow pattern)
+│       │
+│       └── errors/
+│           └── errors.go                # Domain errors (ErrNotFound, ErrForbidden, va h.k.)
+│
+├── migrations/                          # DB migratsiyalar
+│   ├── 000001_init_extensions.up.sql
+│   ├── 000001_init_extensions.down.sql
+│   ├── 000002_users_and_auth.up.sql
+│   ├── 000002_users_and_auth.down.sql
+│   ├── 000003_workflows.up.sql
+│   ├── 000003_workflows.down.sql
+│   ├── 000004_projects.up.sql
+│   ├── 000004_projects.down.sql
+│   ├── 000005_sprints.up.sql
+│   ├── 000005_sprints.down.sql
+│   ├── 000006_issues.up.sql
+│   ├── 000006_issues.down.sql
+│   ├── 000007_spaces_and_pages.up.sql
+│   ├── 000007_spaces_and_pages.down.sql
+│   ├── 000008_comments.up.sql
+│   ├── 000008_comments.down.sql
+│   ├── 000009_attachments.up.sql
+│   ├── 000009_attachments.down.sql
+│   ├── 000010_notifications.up.sql
+│   ├── 000010_notifications.down.sql
+│   ├── 000011_boards_and_audit.up.sql
+│   ├── 000011_boards_and_audit.down.sql
+│   ├── 000012_seed_default_workflow.up.sql
+│   └── 000012_seed_default_workflow.down.sql
+│
+├── docs/                                # Swagger dokumentatsiya
+│   ├── docs.go
+│   ├── swagger.json
+│   └── swagger.yaml
+│
+├── deployments/
+│   ├── docker-compose.yml               # postgres + redis + minio + rabbitmq + app
+│   ├── docker-compose.dev.yml           # Dev uchun (faqat servislar)
+│   └── Dockerfile                       # Multi-stage build
+│
+├── scripts/
+│   ├── migrate.sh                       # Migration ishga tushirish
+│   ├── seed.sh                          # Boshlang'ich admin yaratish
+│   └── lint.sh
+│
+├── logs/                                # Log fayllar
+├── .github/workflows/
+│   ├── ci.yml                           # Test + lint
+│   └── cd.yml                           # Docker build + deploy
+│
+├── .env.example                         # Env namuna
+├── .gitignore
+├── .golangci.yml                        # Linter konfiguratsiyasi
+├── go.mod
+├── go.sum
+├── Makefile                             # make run / migrate / test / lint
+└── README.md

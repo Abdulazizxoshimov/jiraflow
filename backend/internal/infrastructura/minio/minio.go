@@ -1,0 +1,77 @@
+package minio
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/url"
+	"time"
+
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
+
+	"github.com/jira-backend/jiraflow-backend/internal/pkg/config"
+)
+
+type Client interface {
+	Upload(ctx context.Context, objectName, contentType string, reader io.Reader, size int64) (string, error)
+	PresignedURL(ctx context.Context, objectName string, expires time.Duration) (string, error)
+	Delete(ctx context.Context, objectName string) error
+	EnsureBucket(ctx context.Context) error
+}
+
+type minioClient struct {
+	mc     *minio.Client
+	bucket string
+}
+
+func New(cfg config.MinioConfig) (Client, error) {
+	mc, err := minio.New(cfg.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
+		Secure: cfg.UseSSL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("minio: connect: %w", err)
+	}
+	return &minioClient{mc: mc, bucket: cfg.Bucket}, nil
+}
+
+func (c *minioClient) EnsureBucket(ctx context.Context) error {
+	exists, err := c.mc.BucketExists(ctx, c.bucket)
+	if err != nil {
+		return fmt.Errorf("minio: bucket check: %w", err)
+	}
+	if exists {
+		return nil
+	}
+	if err := c.mc.MakeBucket(ctx, c.bucket, minio.MakeBucketOptions{}); err != nil {
+		return fmt.Errorf("minio: make bucket: %w", err)
+	}
+	return nil
+}
+
+func (c *minioClient) Upload(ctx context.Context, objectName, contentType string, reader io.Reader, size int64) (string, error) {
+	_, err := c.mc.PutObject(ctx, c.bucket, objectName, reader, size, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		return "", fmt.Errorf("minio: upload %q: %w", objectName, err)
+	}
+	return objectName, nil
+}
+
+func (c *minioClient) PresignedURL(ctx context.Context, objectName string, expires time.Duration) (string, error) {
+	params := url.Values{}
+	u, err := c.mc.PresignedGetObject(ctx, c.bucket, objectName, expires, params)
+	if err != nil {
+		return "", fmt.Errorf("minio: presign %q: %w", objectName, err)
+	}
+	return u.String(), nil
+}
+
+func (c *minioClient) Delete(ctx context.Context, objectName string) error {
+	if err := c.mc.RemoveObject(ctx, c.bucket, objectName, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("minio: delete %q: %w", objectName, err)
+	}
+	return nil
+}

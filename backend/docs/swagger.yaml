@@ -1,0 +1,5341 @@
+basePath: /
+definitions:
+  entity.AcceptInviteReq:
+    properties:
+      full_name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      password:
+        maxLength: 72
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - full_name
+    - password
+    - token
+    type: object
+  entity.AddProjectMemberReq:
+    properties:
+      role:
+        enum:
+        - admin
+        - member
+        - viewer
+        type: string
+      user_id:
+        type: string
+    required:
+    - role
+    - user_id
+    type: object
+  entity.AddSpaceMemberReq:
+    properties:
+      role:
+        enum:
+        - admin
+        - member
+        - viewer
+        type: string
+      user_id:
+        type: string
+    required:
+    - role
+    - user_id
+    type: object
+  entity.Attachment:
+    properties:
+      checksum:
+        type: string
+      created_at:
+        type: string
+      download_url:
+        type: string
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      id:
+        type: string
+      mime_type:
+        type: string
+      parent_id:
+        type: string
+      parent_type:
+        description: issue | page | comment
+        type: string
+      storage_path:
+        type: string
+      storage_type:
+        description: local | s3
+        type: string
+      uploaded_by:
+        type: string
+      uploader:
+        $ref: '#/definitions/entity.UserShort'
+    type: object
+  entity.AuditLog:
+    properties:
+      action:
+        type: string
+      created_at:
+        type: string
+      details:
+        additionalProperties: {}
+        type: object
+      entity_id:
+        type: string
+      entity_type:
+        type: string
+      id:
+        type: string
+      ip_address:
+        type: string
+      user:
+        $ref: '#/definitions/entity.UserShort'
+      user_agent:
+        type: string
+      user_id:
+        type: string
+    type: object
+  entity.Board:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/entity.BoardColumn'
+        type: array
+      created_at:
+        type: string
+      created_by:
+        type: string
+      filter:
+        additionalProperties: {}
+        type: object
+      id:
+        type: string
+      name:
+        type: string
+      project_id:
+        type: string
+      type:
+        description: kanban | scrum
+        type: string
+      updated_at:
+        type: string
+    type: object
+  entity.BoardColumn:
+    properties:
+      board_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      position:
+        type: integer
+      status_ids:
+        items:
+          type: string
+        type: array
+      wip_limit:
+        type: integer
+    type: object
+  entity.ChangePasswordReq:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        maxLength: 72
+        minLength: 8
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  entity.Comment:
+    properties:
+      author:
+        $ref: '#/definitions/entity.UserShort'
+      author_id:
+        type: string
+      content:
+        additionalProperties: {}
+        description: TipTap JSON
+        type: object
+      content_text:
+        description: plain text
+        type: string
+      created_at:
+        type: string
+      edited_at:
+        type: string
+      id:
+        type: string
+      is_edited:
+        type: boolean
+      parent_id:
+        type: string
+      parent_type:
+        description: issue | page
+        type: string
+      replies:
+        items:
+          $ref: '#/definitions/entity.Comment'
+        type: array
+      reply_to_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  entity.CreateBoardColumnReq:
+    properties:
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      position:
+        type: integer
+      status_ids:
+        items:
+          type: string
+        type: array
+      wip_limit:
+        type: integer
+    required:
+    - name
+    type: object
+  entity.CreateBoardReq:
+    properties:
+      filter:
+        additionalProperties: {}
+        type: object
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      type:
+        enum:
+        - kanban
+        - scrum
+        type: string
+    required:
+    - name
+    - type
+    type: object
+  entity.CreateCommentReq:
+    properties:
+      content:
+        additionalProperties: {}
+        type: object
+      content_text:
+        type: string
+      reply_to_id:
+        type: string
+    required:
+    - content
+    - content_text
+    type: object
+  entity.CreateCustomFieldReq:
+    properties:
+      field_key:
+        maxLength: 50
+        minLength: 1
+        type: string
+      field_type:
+        enum:
+        - text
+        - number
+        - date
+        - select
+        - multi_select
+        - user
+        - checkbox
+        - url
+        type: string
+      is_required:
+        type: boolean
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      options:
+        items:
+          type: string
+        type: array
+      position:
+        type: integer
+    required:
+    - field_key
+    - field_type
+    - name
+    type: object
+  entity.CreateInviteReq:
+    properties:
+      email:
+        type: string
+      role:
+        enum:
+        - admin
+        - member
+        - viewer
+        type: string
+    required:
+    - email
+    - role
+    type: object
+  entity.CreateIssueLinkReq:
+    properties:
+      link_type:
+        enum:
+        - relates_to
+        - blocks
+        - blocked_by
+        - duplicates
+        - is_duplicated_by
+        type: string
+      target_id:
+        type: string
+    required:
+    - link_type
+    - target_id
+    type: object
+  entity.CreateIssueReq:
+    properties:
+      assignee_id:
+        type: string
+      custom_fields:
+        additionalProperties: {}
+        type: object
+      description:
+        type: string
+      due_date:
+        type: string
+      label_ids:
+        items:
+          type: string
+        type: array
+      parent_id:
+        type: string
+      priority:
+        enum:
+        - lowest
+        - low
+        - medium
+        - high
+        - highest
+        type: string
+      sprint_id:
+        type: string
+      story_points:
+        minimum: 0
+        type: integer
+      title:
+        maxLength: 500
+        minLength: 1
+        type: string
+      type:
+        enum:
+        - task
+        - bug
+        - story
+        - epic
+        - subtask
+        type: string
+    required:
+    - title
+    - type
+    type: object
+  entity.CreateLabelReq:
+    properties:
+      color:
+        type: string
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  entity.CreatePageReq:
+    properties:
+      change_note:
+        maxLength: 500
+        type: string
+      content:
+        additionalProperties: {}
+        type: object
+      content_text:
+        type: string
+      parent_id:
+        type: string
+      status:
+        enum:
+        - draft
+        - published
+        type: string
+      title:
+        maxLength: 500
+        minLength: 1
+        type: string
+    required:
+    - title
+    type: object
+  entity.CreateProjectReq:
+    properties:
+      description:
+        maxLength: 2000
+        type: string
+      icon_url:
+        type: string
+      key:
+        maxLength: 10
+        minLength: 2
+        type: string
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      workflow_id:
+        type: string
+    required:
+    - key
+    - name
+    - workflow_id
+    type: object
+  entity.CreateSpaceReq:
+    properties:
+      description:
+        maxLength: 2000
+        type: string
+      icon_url:
+        type: string
+      key:
+        maxLength: 10
+        minLength: 2
+        type: string
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      project_id:
+        type: string
+      type:
+        enum:
+        - team
+        - personal
+        - project
+        type: string
+    required:
+    - key
+    - name
+    - type
+    type: object
+  entity.CreateSprintReq:
+    properties:
+      end_date:
+        type: string
+      goal:
+        maxLength: 2000
+        type: string
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      start_date:
+        type: string
+    required:
+    - name
+    type: object
+  entity.CreateUserReq:
+    properties:
+      email:
+        type: string
+      full_name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      password:
+        maxLength: 72
+        minLength: 8
+        type: string
+      role:
+        enum:
+        - admin
+        - member
+        - viewer
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    type: object
+  entity.CreateWorkflowReq:
+    properties:
+      description:
+        maxLength: 1000
+        type: string
+      is_default:
+        type: boolean
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+    required:
+    - name
+    type: object
+  entity.CreateWorkflowStatusReq:
+    properties:
+      category:
+        enum:
+        - todo
+        - in_progress
+        - done
+        type: string
+      color:
+        type: string
+      is_initial:
+        type: boolean
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      position:
+        type: integer
+    required:
+    - category
+    - name
+    type: object
+  entity.CreateWorkflowTransitionReq:
+    properties:
+      from_status_id:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      to_status_id:
+        type: string
+    required:
+    - name
+    - to_status_id
+    type: object
+  entity.CustomField:
+    properties:
+      created_at:
+        type: string
+      field_key:
+        type: string
+      field_type:
+        type: string
+      id:
+        type: string
+      is_required:
+        type: boolean
+      name:
+        type: string
+      options:
+        items:
+          type: string
+        type: array
+      position:
+        type: integer
+      project_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  entity.File:
+    properties:
+      created_at:
+        type: string
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      id:
+        type: string
+      mime_type:
+        type: string
+      storage_path:
+        type: string
+      uploaded_by:
+        type: string
+      url:
+        description: presigned download URL
+        type: string
+    type: object
+  entity.ForgotPasswordReq:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  entity.Invite:
+    properties:
+      accepted_at:
+        type: string
+      accepted_by:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      invited_by:
+        type: string
+      inviter:
+        $ref: '#/definitions/entity.UserShort'
+      role:
+        type: string
+    type: object
+  entity.Issue:
+    properties:
+      assignee:
+        $ref: '#/definitions/entity.UserShort'
+      assignee_id:
+        type: string
+      created_at:
+        type: string
+      custom_fields:
+        additionalProperties: {}
+        type: object
+      description:
+        type: string
+      due_date:
+        type: string
+      id:
+        type: string
+      issue_number:
+        type: integer
+      labels:
+        items:
+          $ref: '#/definitions/entity.Label'
+        type: array
+      parent_id:
+        type: string
+      priority:
+        description: lowest | low | medium | high | highest
+        type: string
+      project_id:
+        type: string
+      reporter:
+        $ref: '#/definitions/entity.UserShort'
+      reporter_id:
+        type: string
+      sprint_id:
+        type: string
+      status:
+        $ref: '#/definitions/entity.WorkflowStatus'
+      status_id:
+        type: string
+      story_points:
+        type: integer
+      title:
+        type: string
+      type:
+        description: task | bug | story | epic | subtask
+        type: string
+      updated_at:
+        type: string
+    type: object
+  entity.IssueHistory:
+    properties:
+      created_at:
+        type: string
+      field:
+        type: string
+      id:
+        type: string
+      issue_id:
+        type: string
+      new_value:
+        additionalProperties: {}
+        type: object
+      old_value:
+        additionalProperties: {}
+        type: object
+      user:
+        $ref: '#/definitions/entity.UserShort'
+      user_id:
+        type: string
+    type: object
+  entity.IssueLink:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      creator:
+        $ref: '#/definitions/entity.UserShort'
+      id:
+        type: string
+      link_type:
+        description: relates_to | blocks | blocked_by | duplicates | is_duplicated_by
+        type: string
+      source:
+        $ref: '#/definitions/entity.Issue'
+      source_id:
+        type: string
+      target:
+        $ref: '#/definitions/entity.Issue'
+      target_id:
+        type: string
+    type: object
+  entity.IssueWatcher:
+    properties:
+      created_at:
+        type: string
+      issue_id:
+        type: string
+      user:
+        $ref: '#/definitions/entity.UserShort'
+      user_id:
+        type: string
+    type: object
+  entity.Label:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      project_id:
+        type: string
+    type: object
+  entity.LoginReq:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  entity.MarkReadReq:
+    properties:
+      ids:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  entity.Notification:
+    properties:
+      actor:
+        $ref: '#/definitions/entity.UserShort'
+      actor_id:
+        type: string
+      created_at:
+        type: string
+      email_sent_at:
+        type: string
+      entity_id:
+        type: string
+      entity_type:
+        description: issue | page | comment
+        type: string
+      id:
+        type: string
+      payload:
+        additionalProperties: {}
+        type: object
+      read_at:
+        type: string
+      type:
+        type: string
+      user_id:
+        type: string
+    type: object
+  entity.NotificationPreference:
+    properties:
+      daily_digest:
+        type: boolean
+      email_assigned:
+        type: boolean
+      email_commented:
+        type: boolean
+      email_mentioned:
+        type: boolean
+      email_status:
+        type: boolean
+      email_watcher:
+        type: boolean
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  entity.Page:
+    properties:
+      author:
+        $ref: '#/definitions/entity.UserShort'
+      author_id:
+        type: string
+      children:
+        items:
+          $ref: '#/definitions/entity.Page'
+        type: array
+      content:
+        additionalProperties: {}
+        type: object
+      content_text:
+        type: string
+      created_at:
+        type: string
+      current_version:
+        type: integer
+      id:
+        type: string
+      last_editor:
+        $ref: '#/definitions/entity.UserShort'
+      last_editor_id:
+        type: string
+      parent_id:
+        type: string
+      position:
+        type: integer
+      space_id:
+        type: string
+      status:
+        description: draft | published
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  entity.PageTree:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/entity.PageTree'
+        type: array
+      id:
+        type: string
+      parent_id:
+        type: string
+      position:
+        type: integer
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  entity.PageVersion:
+    properties:
+      author:
+        $ref: '#/definitions/entity.UserShort'
+      author_id:
+        type: string
+      change_note:
+        type: string
+      content:
+        additionalProperties: {}
+        type: object
+      content_text:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      page_id:
+        type: string
+      title:
+        type: string
+      version:
+        type: integer
+    type: object
+  entity.Project:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      icon_url:
+        type: string
+      id:
+        type: string
+      is_archived:
+        type: boolean
+      issue_counter:
+        type: integer
+      key:
+        type: string
+      lead:
+        $ref: '#/definitions/entity.UserShort'
+      lead_id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      workflow:
+        $ref: '#/definitions/entity.Workflow'
+      workflow_id:
+        type: string
+    type: object
+  entity.ProjectMember:
+    properties:
+      created_at:
+        type: string
+      project_id:
+        type: string
+      role:
+        type: string
+      user:
+        $ref: '#/definitions/entity.UserShort'
+      user_id:
+        type: string
+    type: object
+  entity.RefreshReq:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  entity.ResetPasswordReq:
+    properties:
+      new_password:
+        maxLength: 72
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
+  entity.SearchResult:
+    properties:
+      excerpt:
+        type: string
+      id:
+        type: string
+      meta:
+        additionalProperties: {}
+        type: object
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/entity.SearchResultType'
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  entity.SearchResultType:
+    enum:
+    - issue
+    - page
+    - project
+    - space
+    type: string
+    x-enum-varnames:
+    - SearchResultIssue
+    - SearchResultPage
+    - SearchResultProject
+    - SearchResultSpace
+  entity.Space:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      icon_url:
+        type: string
+      id:
+        type: string
+      is_archived:
+        type: boolean
+      key:
+        type: string
+      lead:
+        $ref: '#/definitions/entity.UserShort'
+      lead_id:
+        type: string
+      name:
+        type: string
+      project_id:
+        type: string
+      type:
+        description: team | personal | project
+        type: string
+      updated_at:
+        type: string
+    type: object
+  entity.SpaceMember:
+    properties:
+      created_at:
+        type: string
+      role:
+        description: admin | member | viewer
+        type: string
+      space_id:
+        type: string
+      user:
+        $ref: '#/definitions/entity.UserShort'
+      user_id:
+        type: string
+    type: object
+  entity.Sprint:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      end_date:
+        type: string
+      goal:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      project_id:
+        type: string
+      start_date:
+        type: string
+      started_at:
+        type: string
+      status:
+        description: planned | active | completed
+        type: string
+      updated_at:
+        type: string
+    type: object
+  entity.TokenPair:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  entity.UpdateBoardColumnReq:
+    properties:
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      position:
+        type: integer
+      status_ids:
+        items:
+          type: string
+        type: array
+      wip_limit:
+        type: integer
+    type: object
+  entity.UpdateBoardReq:
+    properties:
+      filter:
+        additionalProperties: {}
+        type: object
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+    type: object
+  entity.UpdateCommentReq:
+    properties:
+      content:
+        additionalProperties: {}
+        type: object
+      content_text:
+        type: string
+    required:
+    - content
+    - content_text
+    type: object
+  entity.UpdateCustomFieldReq:
+    properties:
+      is_required:
+        type: boolean
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      options:
+        items:
+          type: string
+        type: array
+      position:
+        type: integer
+    type: object
+  entity.UpdateIssueReq:
+    properties:
+      assignee_id:
+        type: string
+      custom_fields:
+        additionalProperties: {}
+        type: object
+      description:
+        type: string
+      due_date:
+        type: string
+      label_ids:
+        items:
+          type: string
+        type: array
+      priority:
+        enum:
+        - lowest
+        - low
+        - medium
+        - high
+        - highest
+        type: string
+      sprint_id:
+        type: string
+      story_points:
+        minimum: 0
+        type: integer
+      title:
+        maxLength: 500
+        minLength: 1
+        type: string
+    type: object
+  entity.UpdateLabelReq:
+    properties:
+      color:
+        type: string
+      name:
+        maxLength: 64
+        minLength: 1
+        type: string
+    type: object
+  entity.UpdateNotificationPreferenceReq:
+    properties:
+      daily_digest:
+        type: boolean
+      email_assigned:
+        type: boolean
+      email_commented:
+        type: boolean
+      email_mentioned:
+        type: boolean
+      email_status:
+        type: boolean
+      email_watcher:
+        type: boolean
+    type: object
+  entity.UpdatePageReq:
+    properties:
+      change_note:
+        maxLength: 500
+        type: string
+      content:
+        additionalProperties: {}
+        type: object
+      content_text:
+        type: string
+      status:
+        enum:
+        - draft
+        - published
+        type: string
+      title:
+        maxLength: 500
+        minLength: 1
+        type: string
+    type: object
+  entity.UpdateProjectMemberRoleReq:
+    properties:
+      role:
+        enum:
+        - admin
+        - member
+        - viewer
+        type: string
+    required:
+    - role
+    type: object
+  entity.UpdateProjectReq:
+    properties:
+      description:
+        maxLength: 2000
+        type: string
+      icon_url:
+        type: string
+      is_archived:
+        type: boolean
+      lead_id:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      workflow_id:
+        type: string
+    type: object
+  entity.UpdateSpaceMemberRoleReq:
+    properties:
+      role:
+        enum:
+        - admin
+        - member
+        - viewer
+        type: string
+    required:
+    - role
+    type: object
+  entity.UpdateSpaceReq:
+    properties:
+      description:
+        maxLength: 2000
+        type: string
+      icon_url:
+        type: string
+      is_archived:
+        type: boolean
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+    type: object
+  entity.UpdateSprintReq:
+    properties:
+      end_date:
+        type: string
+      goal:
+        maxLength: 2000
+        type: string
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      start_date:
+        type: string
+    type: object
+  entity.UpdateUserReq:
+    properties:
+      avatar_url:
+        type: string
+      full_name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      language:
+        maxLength: 8
+        type: string
+      timezone:
+        maxLength: 64
+        type: string
+    type: object
+  entity.UpdateWorkflowReq:
+    properties:
+      description:
+        maxLength: 1000
+        type: string
+      is_default:
+        type: boolean
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+    type: object
+  entity.UpdateWorkflowStatusReq:
+    properties:
+      category:
+        enum:
+        - todo
+        - in_progress
+        - done
+        type: string
+      color:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      position:
+        type: integer
+    type: object
+  entity.User:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      language:
+        type: string
+      last_login_at:
+        type: string
+      role:
+        type: string
+      timezone:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  entity.UserShort:
+    properties:
+      avatar_url:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+    type: object
+  entity.Workflow:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_default:
+        type: boolean
+      name:
+        type: string
+      statuses:
+        items:
+          $ref: '#/definitions/entity.WorkflowStatus'
+        type: array
+      transitions:
+        items:
+          $ref: '#/definitions/entity.WorkflowTransition'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  entity.WorkflowStatus:
+    properties:
+      category:
+        description: todo | in_progress | done
+        type: string
+      color:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_initial:
+        type: boolean
+      name:
+        type: string
+      position:
+        type: integer
+      updated_at:
+        type: string
+      workflow_id:
+        type: string
+    type: object
+  entity.WorkflowTransition:
+    properties:
+      created_at:
+        type: string
+      from_status:
+        $ref: '#/definitions/entity.WorkflowStatus'
+      from_status_id:
+        description: nil = from any status
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      to_status:
+        $ref: '#/definitions/entity.WorkflowStatus'
+      to_status_id:
+        type: string
+      workflow_id:
+        type: string
+    type: object
+  v1.movePageReq:
+    properties:
+      parent_id:
+        type: string
+      position:
+        type: integer
+    type: object
+  v1.transitionReq:
+    properties:
+      status_id:
+        type: string
+    required:
+    - status_id
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Project management backend API (Jira-like).
+  title: JiraFlow API
+  version: "1.0"
+paths:
+  /api/v1/{parent_type}/{parent_id}/attachments:
+    get:
+      parameters:
+      - description: Parent type (issues|pages)
+        in: path
+        name: parent_type
+        required: true
+        type: string
+      - description: Parent ID
+        in: path
+        name: parent_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Attachment'
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List attachments for a parent
+      tags:
+      - attachments
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Parent type (issues|pages)
+        in: path
+        name: parent_type
+        required: true
+        type: string
+      - description: Parent ID
+        in: path
+        name: parent_id
+        required: true
+        type: string
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Attachment'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload attachment
+      tags:
+      - attachments
+  /api/v1/{parent_type}/{parent_id}/comments:
+    get:
+      parameters:
+      - description: Parent type (issues|pages)
+        in: path
+        name: parent_type
+        required: true
+        type: string
+      - description: Parent ID
+        in: path
+        name: parent_id
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Comment'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List comments for a parent
+      tags:
+      - comments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Parent type (issues|pages)
+        in: path
+        name: parent_type
+        required: true
+        type: string
+      - description: Parent ID
+        in: path
+        name: parent_id
+        required: true
+        type: string
+      - description: Comment data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateCommentReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Comment'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create comment
+      tags:
+      - comments
+  /api/v1/attachments/{id}:
+    delete:
+      parameters:
+      - description: Attachment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete attachment
+      tags:
+      - attachments
+    get:
+      parameters:
+      - description: Attachment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Attachment'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get attachment by ID
+      tags:
+      - attachments
+  /api/v1/attachments/{id}/url:
+    get:
+      parameters:
+      - description: Attachment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  url:
+                    type: string
+                type: object
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get presigned download URL for attachment
+      tags:
+      - attachments
+  /api/v1/audit-logs:
+    get:
+      parameters:
+      - description: Filter by actor
+        in: query
+        name: actor_id
+        type: string
+      - description: Filter by entity type
+        in: query
+        name: entity_type
+        type: string
+      - description: Filter by entity ID
+        in: query
+        name: entity_id
+        type: string
+      - description: Filter by action
+        in: query
+        name: action
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.AuditLog'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List audit logs
+      tags:
+      - audit
+  /api/v1/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: email
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.ForgotPasswordReq'
+      produces:
+      - application/json
+      responses: {}
+      summary: Forgot password
+      tags:
+      - auth
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.TokenPair'
+      summary: Login
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /api/v1/auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.User'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.RefreshReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.TokenPair'
+      summary: Refresh tokens
+      tags:
+      - auth
+  /api/v1/auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.ResetPasswordReq'
+      produces:
+      - application/json
+      responses: {}
+      summary: Reset password
+      tags:
+      - auth
+  /api/v1/board-columns/{id}:
+    delete:
+      parameters:
+      - description: Column ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete board column
+      tags:
+      - boards
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Column ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateBoardColumnReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.BoardColumn'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update board column
+      tags:
+      - boards
+  /api/v1/boards/{board_id}/columns:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Board ID
+        in: path
+        name: board_id
+        required: true
+        type: string
+      - description: Column data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateBoardColumnReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.BoardColumn'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add column to board
+      tags:
+      - boards
+  /api/v1/boards/{board_id}/columns/reorder:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Board ID
+        in: path
+        name: board_id
+        required: true
+        type: string
+      - description: Map of column_id to position
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            id:
+              type: integer
+          type: object
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Reorder board columns
+      tags:
+      - boards
+  /api/v1/boards/{id}:
+    delete:
+      parameters:
+      - description: Board ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete board
+      tags:
+      - boards
+    get:
+      parameters:
+      - description: Board ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Board'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get board with columns
+      tags:
+      - boards
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Board ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateBoardReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Board'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update board
+      tags:
+      - boards
+  /api/v1/comments/{id}:
+    delete:
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete comment
+      tags:
+      - comments
+    get:
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Comment'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get comment by ID
+      tags:
+      - comments
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateCommentReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Comment'
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update comment
+      tags:
+      - comments
+  /api/v1/custom-fields/{id}:
+    delete:
+      parameters:
+      - description: Custom field ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete custom field
+      tags:
+      - custom-fields
+    get:
+      parameters:
+      - description: Custom field ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.CustomField'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get custom field by ID
+      tags:
+      - custom-fields
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Custom field ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateCustomFieldReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.CustomField'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update custom field
+      tags:
+      - custom-fields
+  /api/v1/files/presign:
+    get:
+      parameters:
+      - description: Storage path returned from upload
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  url:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get presigned URL for a stored file
+      tags:
+      - files
+  /api/v1/files/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.File'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload a standalone file to object storage
+      tags:
+      - files
+  /api/v1/invites:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Invite'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List pending invites
+      tags:
+      - invites
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Invite data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateInviteReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Invite'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send invitation
+      tags:
+      - invites
+  /api/v1/invites/{id}:
+    delete:
+      parameters:
+      - description: Invite ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Revoke invitation
+      tags:
+      - invites
+  /api/v1/invites/accept:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Token and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.AcceptInviteReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.TokenPair'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      summary: Accept invitation
+      tags:
+      - invites
+  /api/v1/issues:
+    get:
+      parameters:
+      - description: Filter by project
+        in: query
+        name: project_id
+        type: string
+      - description: Filter by sprint
+        in: query
+        name: sprint_id
+        type: string
+      - description: Filter by assignee
+        in: query
+        name: assignee_id
+        type: string
+      - description: Filter by status
+        in: query
+        name: status_id
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Issue'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List issues
+      tags:
+      - issues
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Issue data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateIssueReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Issue'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create issue
+      tags:
+      - issues
+  /api/v1/issues/{id}:
+    delete:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete issue
+      tags:
+      - issues
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Issue'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get issue by ID
+      tags:
+      - issues
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateIssueReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Issue'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update issue
+      tags:
+      - issues
+  /api/v1/issues/{id}/history:
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.IssueHistory'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List issue change history
+      tags:
+      - issues
+  /api/v1/issues/{id}/transition:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target status ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.transitionReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Issue'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Transition issue status
+      tags:
+      - issues
+  /api/v1/issues/{issue_id}/links:
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: issue_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.IssueLink'
+                type: array
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List links for an issue
+      tags:
+      - issue-links
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Source Issue ID
+        in: path
+        name: issue_id
+        required: true
+        type: string
+      - description: Link data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateIssueLinkReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.IssueLink'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Link two issues
+      tags:
+      - issue-links
+  /api/v1/issues/{issue_id}/watchers:
+    delete:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: issue_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Unwatch an issue
+      tags:
+      - issue-watchers
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: issue_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.IssueWatcher'
+                type: array
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List issue watchers
+      tags:
+      - issue-watchers
+    post:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: issue_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Watch an issue
+      tags:
+      - issue-watchers
+  /api/v1/issues/links/{id}:
+    delete:
+      parameters:
+      - description: Link ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete issue link
+      tags:
+      - issue-links
+  /api/v1/labels/{id}:
+    delete:
+      parameters:
+      - description: Label ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete label
+      tags:
+      - labels
+    get:
+      parameters:
+      - description: Label ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Label'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get label by ID
+      tags:
+      - labels
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Label ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateLabelReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Label'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update label
+      tags:
+      - labels
+  /api/v1/notifications:
+    get:
+      parameters:
+      - description: Filter by read status
+        in: query
+        name: is_read
+        type: boolean
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Notification'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List notifications for current user
+      tags:
+      - notifications
+  /api/v1/notifications/{id}:
+    delete:
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete notification
+      tags:
+      - notifications
+  /api/v1/notifications/mark-all-read:
+    post:
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - notifications
+  /api/v1/notifications/mark-read:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Notification IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.MarkReadReq'
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Mark specific notifications as read
+      tags:
+      - notifications
+  /api/v1/notifications/preferences:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.NotificationPreference'
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get notification preferences
+      tags:
+      - notifications
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Preferences
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateNotificationPreferenceReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.NotificationPreference'
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update notification preferences
+      tags:
+      - notifications
+  /api/v1/notifications/unread-count:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  count:
+                    type: integer
+                type: object
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Count unread notifications
+      tags:
+      - notifications
+  /api/v1/page-versions/{id}:
+    get:
+      parameters:
+      - description: Page version ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.PageVersion'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get page version by ID
+      tags:
+      - page-versions
+  /api/v1/pages:
+    get:
+      parameters:
+      - description: Filter by space
+        in: query
+        name: space_id
+        type: string
+      - description: Filter by parent page
+        in: query
+        name: parent_id
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Page'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List pages
+      tags:
+      - pages
+  /api/v1/pages/{id}:
+    delete:
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete page
+      tags:
+      - pages
+    get:
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Page'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get page by ID
+      tags:
+      - pages
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdatePageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Page'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update page
+      tags:
+      - pages
+  /api/v1/pages/{id}/move:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Page ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New position data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/v1.movePageReq'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Move page (change position or parent)
+      tags:
+      - pages
+  /api/v1/pages/{page_id}/versions:
+    get:
+      parameters:
+      - description: Page ID
+        in: path
+        name: page_id
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.PageVersion'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all versions of a page
+      tags:
+      - page-versions
+  /api/v1/pages/{page_id}/versions/{version}:
+    get:
+      parameters:
+      - description: Page ID
+        in: path
+        name: page_id
+        required: true
+        type: string
+      - description: Version number
+        in: path
+        name: version
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.PageVersion'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get specific version of a page
+      tags:
+      - page-versions
+  /api/v1/projects:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Search query
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Project'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List projects
+      tags:
+      - projects
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateProjectReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Project'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create project
+      tags:
+      - projects
+  /api/v1/projects/{id}:
+    delete:
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete project
+      tags:
+      - projects
+    get:
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Project'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get project by ID
+      tags:
+      - projects
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateProjectReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Project'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update project
+      tags:
+      - projects
+  /api/v1/projects/{id}/archive:
+    post:
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Archive project
+      tags:
+      - projects
+  /api/v1/projects/{project_id}/boards:
+    get:
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Board'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List boards by project
+      tags:
+      - boards
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Board data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateBoardReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Board'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create board
+      tags:
+      - boards
+  /api/v1/projects/{project_id}/custom-fields:
+    get:
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.CustomField'
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List custom fields by project
+      tags:
+      - custom-fields
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Custom field data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateCustomFieldReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.CustomField'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create custom field
+      tags:
+      - custom-fields
+  /api/v1/projects/{project_id}/custom-fields/reorder:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Map of field_id to position
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            id:
+              type: integer
+          type: object
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Reorder custom fields
+      tags:
+      - custom-fields
+  /api/v1/projects/{project_id}/labels:
+    get:
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Label'
+                type: array
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List labels by project
+      tags:
+      - labels
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Label data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateLabelReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Label'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create label
+      tags:
+      - labels
+  /api/v1/projects/{project_id}/members:
+    get:
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.ProjectMember'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List project members
+      tags:
+      - project-members
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Member data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.AddProjectMemberReq'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add member to project
+      tags:
+      - project-members
+  /api/v1/projects/{project_id}/members/{user_id}:
+    delete:
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove project member
+      tags:
+      - project-members
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateProjectMemberRoleReq'
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update project member role
+      tags:
+      - project-members
+  /api/v1/projects/{project_id}/sprints:
+    get:
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Sprint'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List sprints by project
+      tags:
+      - sprints
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: string
+      - description: Sprint data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateSprintReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Sprint'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create sprint
+      tags:
+      - sprints
+  /api/v1/search:
+    get:
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Limit to project
+        in: query
+        name: project_id
+        type: string
+      - description: Entity type (issue|page)
+        in: query
+        name: type
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.SearchResult'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Full-text search across issues and pages
+      tags:
+      - search
+  /api/v1/spaces:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Space'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List spaces
+      tags:
+      - spaces
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Space data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateSpaceReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Space'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create space
+      tags:
+      - spaces
+  /api/v1/spaces/{id}:
+    delete:
+      parameters:
+      - description: Space ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete space
+      tags:
+      - spaces
+    get:
+      parameters:
+      - description: Space ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Space'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get space by ID
+      tags:
+      - spaces
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Space ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateSpaceReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Space'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update space
+      tags:
+      - spaces
+  /api/v1/spaces/{space_id}/members:
+    get:
+      parameters:
+      - description: Space ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.SpaceMember'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List space members
+      tags:
+      - space-members
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Space ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      - description: Member data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.AddSpaceMemberReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.SpaceMember'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add member to space
+      tags:
+      - space-members
+  /api/v1/spaces/{space_id}/members/{user_id}:
+    delete:
+      parameters:
+      - description: Space ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove space member
+      tags:
+      - space-members
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Space ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateSpaceMemberRoleReq'
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update space member role
+      tags:
+      - space-members
+  /api/v1/spaces/{space_id}/pages:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Space ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      - description: Page data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreatePageReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Page'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create page in space
+      tags:
+      - pages
+  /api/v1/spaces/{space_id}/pages/tree:
+    get:
+      parameters:
+      - description: Space ID
+        in: path
+        name: space_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.PageTree'
+                type: array
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get page tree for space
+      tags:
+      - pages
+  /api/v1/sprints/{id}:
+    delete:
+      parameters:
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete sprint
+      tags:
+      - sprints
+    get:
+      parameters:
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Sprint'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get sprint by ID
+      tags:
+      - sprints
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateSprintReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Sprint'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update sprint
+      tags:
+      - sprints
+  /api/v1/sprints/{id}/complete:
+    post:
+      parameters:
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Sprint'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Complete sprint
+      tags:
+      - sprints
+  /api/v1/sprints/{id}/start:
+    post:
+      parameters:
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Sprint'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Start sprint
+      tags:
+      - sprints
+  /api/v1/users:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.User'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateUserReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.User'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create user
+      tags:
+      - users
+  /api/v1/users/{id}:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.User'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateUserReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.User'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user
+      tags:
+      - users
+  /api/v1/users/{id}/activate:
+    post:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Activate user
+      tags:
+      - users
+  /api/v1/users/{id}/deactivate:
+    post:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Deactivate user
+      tags:
+      - users
+  /api/v1/users/{id}/password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Passwords
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.ChangePasswordReq'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - users
+  /api/v1/workflows:
+    get:
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/entity.Workflow'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+              total_pages:
+                type: integer
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List workflows
+      tags:
+      - workflows
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workflow data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateWorkflowReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Workflow'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create workflow
+      tags:
+      - workflows
+  /api/v1/workflows/{id}:
+    delete:
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete workflow
+      tags:
+      - workflows
+    get:
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Workflow'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get workflow with statuses and transitions
+      tags:
+      - workflows
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateWorkflowReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.Workflow'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update workflow
+      tags:
+      - workflows
+  /api/v1/workflows/{workflow_id}/statuses:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: workflow_id
+        required: true
+        type: string
+      - description: Status data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateWorkflowStatusReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.WorkflowStatus'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add status to workflow
+      tags:
+      - workflows
+  /api/v1/workflows/{workflow_id}/transitions:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Workflow ID
+        in: path
+        name: workflow_id
+        required: true
+        type: string
+      - description: Transition data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.CreateWorkflowTransitionReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.WorkflowTransition'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add transition to workflow
+      tags:
+      - workflows
+  /api/v1/workflows/statuses/{id}:
+    delete:
+      parameters:
+      - description: Status ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete workflow status
+      tags:
+      - workflows
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Status ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/entity.UpdateWorkflowStatusReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/entity.WorkflowStatus'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update workflow status
+      tags:
+      - workflows
+  /api/v1/workflows/transitions/{id}:
+    delete:
+      parameters:
+      - description: Transition ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete workflow transition
+      tags:
+      - workflows
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,105 @@
+# ─── Roles ────────────────────────────────────────────────────────────────────
+# admin inherits member, member inherits viewer
+g, admin,  member
+g, member, viewer
+
+# ─── Public (unauthorized) ────────────────────────────────────────────────────
+p, unauthorized, /api/v1/auth/login,    POST
+p, unauthorized, /api/v1/auth/register, POST
+p, unauthorized, /api/v1/auth/refresh,  POST
+
+# ─── viewer (read-only) ───────────────────────────────────────────────────────
+p, viewer, /api/v1/projects,              GET
+p, viewer, /api/v1/projects/:id,          GET
+p, viewer, /api/v1/projects/:id/members,  GET
+
+p, viewer, /api/v1/issues,                GET
+p, viewer, /api/v1/issues/:id,            GET
+p, viewer, /api/v1/issues/:id/comments,   GET
+p, viewer, /api/v1/issues/:id/history,    GET
+p, viewer, /api/v1/issues/:id/watchers,   GET
+
+p, viewer, /api/v1/sprints,               GET
+p, viewer, /api/v1/sprints/:id,           GET
+
+p, viewer, /api/v1/boards,                GET
+p, viewer, /api/v1/boards/:id,            GET
+p, viewer, /api/v1/boards/:id/columns,    GET
+
+p, viewer, /api/v1/spaces,                GET
+p, viewer, /api/v1/spaces/:id,            GET
+p, viewer, /api/v1/spaces/:id/pages,      GET
+p, viewer, /api/v1/pages/:id,             GET
+
+p, viewer, /api/v1/labels,                GET
+p, viewer, /api/v1/search,                GET
+p, viewer, /api/v1/notifications,         GET
+
+p, viewer, /api/v1/users/me,              GET
+p, viewer, /api/v1/users/:id,             GET
+
+# ─── member (read + write on issues/comments/sprints) ────────────────────────
+p, member, /api/v1/issues,               POST
+p, member, /api/v1/issues/:id,           PUT
+p, member, /api/v1/issues/:id,           PATCH
+p, member, /api/v1/issues/:id/comments,  POST
+p, member, /api/v1/issues/:id/watchers,  POST
+p, member, /api/v1/issues/:id/watchers,  DELETE
+p, member, /api/v1/issues/:id/links,     POST
+p, member, /api/v1/issues/:id/links,     DELETE
+p, member, /api/v1/issues/:id/transition, POST
+p, member, /api/v1/issues/:id/attachments, POST
+
+p, member, /api/v1/comments/:id,         PUT
+p, member, /api/v1/comments/:id,         DELETE
+
+p, member, /api/v1/sprints,              POST
+p, member, /api/v1/sprints/:id,          PUT
+p, member, /api/v1/sprints/:id,          PATCH
+
+p, member, /api/v1/pages,               POST
+p, member, /api/v1/pages/:id,           PUT
+p, member, /api/v1/pages/:id,           DELETE
+
+p, member, /api/v1/files,               POST
+p, member, /api/v1/invites,             POST
+
+p, member, /api/v1/notifications/:id,   PATCH
+p, member, /api/v1/users/me,            PUT
+p, member, /api/v1/users/me/password,   PUT
+
+# ─── admin (full control) ─────────────────────────────────────────────────────
+p, admin, /api/v1/projects,              POST
+p, admin, /api/v1/projects/:id,          PUT
+p, admin, /api/v1/projects/:id,          DELETE
+p, admin, /api/v1/projects/:id/members,  POST
+p, admin, /api/v1/projects/:id/members,  DELETE
+
+p, admin, /api/v1/boards,               POST
+p, admin, /api/v1/boards/:id,           PUT
+p, admin, /api/v1/boards/:id,           DELETE
+p, admin, /api/v1/boards/:id/columns,   POST
+p, admin, /api/v1/boards/:id/columns,   PUT
+p, admin, /api/v1/boards/:id/columns,   DELETE
+
+p, admin, /api/v1/spaces,               POST
+p, admin, /api/v1/spaces/:id,           PUT
+p, admin, /api/v1/spaces/:id,           DELETE
+p, admin, /api/v1/spaces/:id/members,   POST
+p, admin, /api/v1/spaces/:id/members,   DELETE
+
+p, admin, /api/v1/workflows,            POST
+p, admin, /api/v1/workflows/:id,        PUT
+p, admin, /api/v1/workflows/:id,        DELETE
+p, admin, /api/v1/workflows/:id/statuses,    POST
+p, admin, /api/v1/workflows/:id/transitions, POST
+
+p, admin, /api/v1/labels,               POST
+p, admin, /api/v1/labels/:id,           PUT
+p, admin, /api/v1/labels/:id,           DELETE
+
+p, admin, /api/v1/custom-fields,        POST
+p, admin, /api/v1/custom-fields/:id,    PUT
+p, admin, /api/v1/custom-fields/:id,    DELETE
+
+p, admin, /api/v1/audit,               GET

@@ -1,0 +1,300 @@
+jiraflow-backend
+|-- .github
+|   `-- workflows
+|       |-- cd.yml
+|       `-- ci.yml
+|-- api
+|   |-- handlers
+|   |   |-- v1
+|   |   |   |-- attachment.go
+|   |   |   |-- audit.go
+|   |   |   |-- auth.go
+|   |   |   |-- board.go
+|   |   |   |-- board_column.go
+|   |   |   |-- comment.go
+|   |   |   |-- custom_field.go
+|   |   |   |-- file.go
+|   |   |   |-- invite.go
+|   |   |   |-- issue.go
+|   |   |   |-- issue_history.go
+|   |   |   |-- issue_link.go
+|   |   |   |-- issue_transition.go
+|   |   |   |-- issue_watcher.go
+|   |   |   |-- label.go
+|   |   |   |-- notification.go
+|   |   |   |-- page.go
+|   |   |   |-- page_version.go
+|   |   |   |-- project.go
+|   |   |   |-- project_member.go
+|   |   |   |-- search.go
+|   |   |   |-- space.go
+|   |   |   |-- space_member.go
+|   |   |   |-- sprint.go
+|   |   |   |-- user.go
+|   |   |   |-- workflow.go
+|   |   |   |-- workflow_status.go
+|   |   |   `-- workflow_transition.go
+|   |   `-- handler.go
+|   |-- http_status
+|   |   |-- errors.go
+|   |   |-- message.go
+|   |   |-- response.go
+|   |   `-- status.go
+|   |-- middleware
+|   |   |-- auth.go
+|   |   |-- caching.go
+|   |   |-- cors.go
+|   |   |-- logging.go
+|   |   |-- rate_limit.go
+|   |   |-- rbac.go
+|   |   |-- recover.go
+|   |   `-- request_id.go
+|   |-- router.go
+|   `-- server.go
+|-- cmd
+|   `-- main.go
+|-- deployments
+|   |-- Dockerfile
+|   |-- docker-compose.dev.yml
+|   `-- docker-compose.yml
+|-- docs
+|   |-- docs.go
+|   |-- swagger.json
+|   `-- swagger.yaml
+|-- internal
+|   |-- app
+|   |   `-- app.go
+|   |-- entity
+|   |   |-- attachment.go
+|   |   |-- audit_log.go
+|   |   |-- auth.go
+|   |   |-- board.go
+|   |   |-- board_column.go
+|   |   |-- comment.go
+|   |   |-- comment_mention.go
+|   |   |-- common.go
+|   |   |-- custom_field.go
+|   |   |-- file.go
+|   |   |-- invite.go
+|   |   |-- issue.go
+|   |   |-- issue_history.go
+|   |   |-- issue_link.go
+|   |   |-- issue_watcher.go
+|   |   |-- label.go
+|   |   |-- notification.go
+|   |   |-- notification_preference.go
+|   |   |-- page.go
+|   |   |-- page_version.go
+|   |   |-- password_reset.go
+|   |   |-- project.go
+|   |   |-- project_member.go
+|   |   |-- refresh_token.go
+|   |   |-- search.go
+|   |   |-- space.go
+|   |   |-- space_member.go
+|   |   |-- sprint.go
+|   |   |-- user.go
+|   |   |-- workflow.go
+|   |   |-- workflow_status.go
+|   |   `-- workflow_transition.go
+|   |-- infrastructura
+|   |   |-- amqp
+|   |   |   |-- amqp.go
+|   |   |   |-- consumer.go
+|   |   |   `-- publisher.go
+|   |   |-- email
+|   |   |   |-- templates
+|   |   |   |   |-- daily_digest.html
+|   |   |   |   |-- invite.html
+|   |   |   |   |-- notification_assigned.html
+|   |   |   |   |-- notification_mentioned.html
+|   |   |   |   `-- password_reset.html
+|   |   |   `-- email.go
+|   |   |-- minio
+|   |   |   `-- minio.go
+|   |   |-- redis
+|   |   |   |-- cache.go
+|   |   |   |-- redis.go
+|   |   |   `-- session.go
+|   |   |-- repository
+|   |   |   |-- postgres
+|   |   |   |   |-- attachment.go
+|   |   |   |   |-- audit.go
+|   |   |   |   |-- auth.go
+|   |   |   |   |-- board.go
+|   |   |   |   |-- comment.go
+|   |   |   |   |-- custom_field.go
+|   |   |   |   |-- invite.go
+|   |   |   |   |-- issue.go
+|   |   |   |   |-- issue_link.go
+|   |   |   |   |-- label.go
+|   |   |   |   |-- notification.go
+|   |   |   |   |-- page.go
+|   |   |   |   |-- page_version.go
+|   |   |   |   |-- project.go
+|   |   |   |   |-- project_member.go
+|   |   |   |   |-- search.go
+|   |   |   |   |-- space.go
+|   |   |   |   |-- sprint.go
+|   |   |   |   |-- user.go
+|   |   |   |   `-- workflow.go
+|   |   |   |-- attachment.go
+|   |   |   |-- audit.go
+|   |   |   |-- auth.go
+|   |   |   |-- board.go
+|   |   |   |-- comment.go
+|   |   |   |-- custom_field.go
+|   |   |   |-- invite.go
+|   |   |   |-- issue.go
+|   |   |   |-- issue_link.go
+|   |   |   |-- label.go
+|   |   |   |-- notification.go
+|   |   |   |-- page.go
+|   |   |   |-- page_version.go
+|   |   |   |-- project.go
+|   |   |   |-- project_member.go
+|   |   |   |-- search.go
+|   |   |   |-- space.go
+|   |   |   |-- sprint.go
+|   |   |   |-- user.go
+|   |   |   `-- workflow.go
+|   |   |-- tiptap
+|   |   |   |-- tiptap.go
+|   |   |   `-- validator.go
+|   |   `-- websocket
+|   |       |-- notify.go
+|   |       `-- websocket.go
+|   |-- pkg
+|   |   |-- casbin
+|   |   |   |-- casbin.go
+|   |   |   |-- model.conf
+|   |   |   `-- policy.csv
+|   |   |-- config
+|   |   |   |-- config.csv
+|   |   |   `-- config.go
+|   |   |-- errors
+|   |   |   `-- errors.go
+|   |   |-- hasher
+|   |   |   `-- bcrypt.go
+|   |   |-- helper
+|   |   |   |-- helper.go
+|   |   |   |-- markdown.go
+|   |   |   |-- pagination.go
+|   |   |   |-- sanitizer.go
+|   |   |   `-- slug.go
+|   |   |-- logger
+|   |   |   `-- logger.go
+|   |   |-- postgres
+|   |   |   |-- postgres.go
+|   |   |   `-- transaction.go
+|   |   |-- token
+|   |   |   |-- claims.go
+|   |   |   `-- jwt.go
+|   |   `-- validator
+|   |       `-- validator.go
+|   `-- usecase
+|       |-- attachment
+|       |   |-- attachment.go
+|       |   `-- interface.go
+|       |-- audit
+|       |   |-- audit.go
+|       |   `-- interface.go
+|       |-- auth
+|       |   |-- auth.go
+|       |   `-- interface.go
+|       |-- board
+|       |   |-- board.go
+|       |   `-- interface.go
+|       |-- comment
+|       |   |-- comment.go
+|       |   |-- interface.go
+|       |   `-- mention.go
+|       |-- custom_field
+|       |   |-- custom_field.go
+|       |   `-- interface.go
+|       |-- file
+|       |   |-- file.go
+|       |   `-- interface.go
+|       |-- invite
+|       |   |-- interface.go
+|       |   `-- invite.go
+|       |-- issue
+|       |   |-- interface.go
+|       |   `-- issue.go
+|       |-- issue_link
+|       |   |-- interface.go
+|       |   `-- issue_link.go
+|       |-- label
+|       |   |-- interface.go
+|       |   `-- label.go
+|       |-- notification
+|       |   |-- dispatcher.go
+|       |   |-- interface.go
+|       |   `-- notification.go
+|       |-- page
+|       |   |-- interface.go
+|       |   |-- page.go
+|       |   `-- tree.go
+|       |-- page_version
+|       |   |-- interface.go
+|       |   `-- page_version.go
+|       |-- project
+|       |   |-- interface.go
+|       |   `-- project.go
+|       |-- project_member
+|       |   |-- interface.go
+|       |   `-- project_member.go
+|       |-- search
+|       |   |-- interface.go
+|       |   `-- search.go
+|       |-- space
+|       |   |-- interface.go
+|       |   `-- space.go
+|       |-- sprint
+|       |   |-- interface.go
+|       |   `-- sprint.go
+|       |-- user
+|       |   |-- interface.go
+|       |   `-- user.go
+|       `-- workflow
+|           |-- interface.go
+|           `-- workflow.go
+|-- logs
+|-- migrations
+|   |-- 000001_init_extensions.down.sql
+|   |-- 000001_init_extensions.up.sql
+|   |-- 000002_users_and_auth.down.sql
+|   |-- 000002_users_and_auth.up.sql
+|   |-- 000003_workflows.down.sql
+|   |-- 000003_workflows.up.sql
+|   |-- 000004_projects.down.sql
+|   |-- 000004_projects.up.sql
+|   |-- 000005_sprints.down.sql
+|   |-- 000005_sprints.up.sql
+|   |-- 000006_issues.down.sql
+|   |-- 000006_issues.up.sql
+|   |-- 000007_spaces_and_pages.down.sql
+|   |-- 000007_spaces_and_pages.up.sql
+|   |-- 000008_comments.down.sql
+|   |-- 000008_comments.up.sql
+|   |-- 000009_attachments.down.sql
+|   |-- 000009_attachments.up.sql
+|   |-- 000010_notifications.down.sql
+|   |-- 000010_notifications.up.sql
+|   |-- 000011_boards_and_audit.down.sql
+|   |-- 000011_boards_and_audit.up.sql
+|   |-- 000012_seed_default_workflow.down.sql
+|   `-- 000012_seed_default_workflow.up.sql
+|-- scripts
+|   |-- lint.sh
+|   |-- migrate.sh
+|   `-- seed.sh
+|-- .env.example
+|-- .gitignore
+|-- .golangci.yml
+|-- Makefile
+|-- README.md
+|-- go.mod
+`-- go.sum
+
+59 directories, 239 files
