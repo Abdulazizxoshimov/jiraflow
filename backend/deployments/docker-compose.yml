@@ -64,9 +64,15 @@ services:
     image: grafana/loki:2.9.0
     ports:
       - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/loki-config.yaml
     volumes:
       - loki_data:/loki
+      - ../deployments/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   grafana:
     image: grafana/grafana:10.2.0
@@ -75,11 +81,14 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/jiraflow-logs.json
     volumes:
       - grafana_data:/var/lib/grafana
       - ../deployments/grafana/provisioning:/etc/grafana/provisioning
+      - ../deployments/grafana/dashboards:/etc/grafana/dashboards:ro
     depends_on:
-      - loki
+      loki:
+        condition: service_healthy
 
 volumes:
   pg_data:
