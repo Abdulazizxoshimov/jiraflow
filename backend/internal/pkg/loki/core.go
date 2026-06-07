@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -119,9 +122,14 @@ func (t *transport) flush() {
 
 	resp, err := t.client.Do(req)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "[loki] push failed: %v\n", err)
 		return
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Fprintf(os.Stderr, "[loki] push error %d: %s\n", resp.StatusCode, string(body))
+	}
 }
 
 func (t *transport) stop() {

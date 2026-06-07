@@ -48,6 +48,13 @@ func Run(cfg *config.Config) error {
 	)
 	defer logger.Cleanup(log)
 
+	ctx := context.Background()
+	if cfg.Loki.URL != "" {
+		log.Info(ctx, "loki configured", logger.String("url", cfg.Loki.URL), logger.String("user", cfg.Loki.User))
+	} else {
+		log.Warn(ctx, "loki not configured — set LOKI_URL to enable log shipping")
+	}
+
 	// ── Sentry ────────────────────────────────────────────────────────────────
 
 	if cfg.Sentry.DSN != "" {
