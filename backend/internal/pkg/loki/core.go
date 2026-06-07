@@ -36,9 +36,11 @@ type entry struct {
 // ── transport: batching + HTTP delivery ──────────────────────────────────────
 
 type transport struct {
-	url    string
-	labels map[string]string
-	client *http.Client
+	url      string
+	labels   map[string]string
+	user     string
+	password string
+	client   *http.Client
 
 	mu    sync.Mutex
 	batch []entry
@@ -47,13 +49,15 @@ type transport struct {
 	done   chan struct{}
 }
 
-func newTransport(lokiURL string, labels map[string]string) *transport {
+func newTransport(lokiURL, user, password string, labels map[string]string) *transport {
 	t := &transport{
-		url:    lokiURL + "/loki/api/v1/push",
-		labels: labels,
-		client: &http.Client{Timeout: 5 * time.Second},
-		ticker: time.NewTicker(flushPeriod),
-		done:   make(chan struct{}),
+		url:      lokiURL + "/loki/api/v1/push",
+		labels:   labels,
+		user:     user,
+		password: password,
+		client:   &http.Client{Timeout: 5 * time.Second},
+		ticker:   time.NewTicker(flushPeriod),
+		done:     make(chan struct{}),
 	}
 	go t.loop()
 	return t
@@ -109,6 +113,9 @@ func (t *transport) flush() {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if t.user != "" {
+		req.SetBasicAuth(t.user, t.password)
+	}
 
 	resp, err := t.client.Do(req)
 	if err != nil {
@@ -144,10 +151,11 @@ type Core struct {
 }
 
 // New creates a Loki Core. Call Stop() on shutdown to flush remaining entries.
-func New(lokiURL string, labels map[string]string, minLevel zapcore.Level) *Core {
+// user and password are used for Basic Auth (required by Grafana Cloud; leave empty for self-hosted).
+func New(lokiURL, user, password string, labels map[string]string, minLevel zapcore.Level) *Core {
 	return &Core{
 		LevelEnabler: minLevel,
-		tr:           newTransport(lokiURL, labels),
+		tr:           newTransport(lokiURL, user, password, labels),
 		enc:          zapcore.NewJSONEncoder(encCfg),
 	}
 }

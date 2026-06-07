@@ -65,12 +65,13 @@ type Logger interface {
 type Option func(*loggerImpl)
 
 // WithLoki attaches a Loki core that ships warn+ logs to the given Loki URL.
-func WithLoki(lokiURL string, labels map[string]string) Option {
+// user and password are for Basic Auth (Grafana Cloud); leave empty for self-hosted Loki.
+func WithLoki(lokiURL, user, password string, labels map[string]string) Option {
 	return func(l *loggerImpl) {
 		if lokiURL == "" {
 			return
 		}
-		lokiCore := loki.New(lokiURL, labels, zapcore.WarnLevel)
+		lokiCore := loki.New(lokiURL, user, password, labels, zapcore.WarnLevel)
 		l.zap = l.zap.WithOptions(zap.WrapCore(func(existing zapcore.Core) zapcore.Core {
 			return zapcore.NewTee(existing, lokiCore)
 		}))

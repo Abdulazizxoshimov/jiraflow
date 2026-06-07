@@ -41,7 +41,7 @@ func Run(cfg *config.Config) error {
 
 	log := logger.New(
 		cfg.App.LogLevel, "jiraflow", "v1",
-		logger.WithLoki(cfg.Loki.URL, map[string]string{
+		logger.WithLoki(cfg.Loki.URL, cfg.Loki.User, cfg.Loki.Password, map[string]string{
 			"app":         "jiraflow-backend",
 			"environment": cfg.App.Env,
 		}),

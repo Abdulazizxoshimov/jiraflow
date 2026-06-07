@@ -27,7 +27,9 @@ type SentryConfig struct {
 }
 
 type LokiConfig struct {
-	URL string `json:"url"`
+	URL      string `json:"url"`
+	User     string `json:"user"`
+	Password string `json:"password"`
 }
 
 type TelegramConfig struct {
@@ -189,7 +191,9 @@ func Load() *Config {
 			TracesSampleRate: getEnvFloat("SENTRY_TRACES_SAMPLE_RATE", 0.2),
 		},
 		Loki: LokiConfig{
-			URL: getEnv("LOKI_URL", ""),
+			URL:      getEnv("LOKI_URL", ""),
+			User:     getEnv("LOKI_USER", ""),
+			Password: getEnv("LOKI_PASSWORD", ""),
 		},
 	}
 }
