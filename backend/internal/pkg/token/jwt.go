@@ -109,10 +109,10 @@ func (m *JWTMaker) ValidateAccess(ctx context.Context, tokenStr string) (*Claims
 
 	exists, err := m.redis.Exists(ctx, m.sessionKey(sid)).Result()
 	if err != nil {
-		m.log.Error(ctx, "redis: session check failed", logger.Error(err))
-		return nil, fmt.Errorf("session check: %w", err)
-	}
-	if exists == 0 {
+		// Redis temporarily unavailable: degrade gracefully — trust JWT signature/expiry
+		// rather than returning 401 to all users and causing a full outage.
+		m.log.Error(ctx, "redis: session check failed — degrading to JWT-only validation", logger.Error(err))
+	} else if exists == 0 {
 		return nil, errors.New("token: session revoked or not found")
 	}
 
@@ -241,4 +241,4 @@ func (m *JWTMaker) parse(tokenStr, wantType string) (jwt.MapClaims, error) {
 }
 
 func (m *JWTMaker) refreshKey(jti string) string { return m.redisPrefix + ":refresh:" + jti }
-func (m *JWTMaker) sessionKey(sid string) string  { return m.redisPrefix + ":sess:" + sid }
+func (m *JWTMaker) sessionKey(sid string) string { return m.redisPrefix + ":sess:" + sid }

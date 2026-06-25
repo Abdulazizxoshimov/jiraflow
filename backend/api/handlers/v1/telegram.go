@@ -14,7 +14,6 @@ import (
 // GetTelegramStatus godoc
 // @Summary      Get Telegram connection status
 // @Tags         telegram
-// @Produce      json
 // @Security     BearerAuth
 // @Success      200  {object}  entity.TelegramStatusResp
 // @Router       /api/v1/auth/telegram/status [get]
@@ -36,22 +35,30 @@ func GetTelegramStatus(h *handlers.Handler) gin.HandlerFunc {
 	}
 }
 
-// GenerateTelegramCode godoc
-// @Summary      Generate Telegram verification code
+// VerifyTelegramCode godoc
+// @Summary      Verify a code received from the Telegram bot to link the account
+// @Description  Flow: open bot → /start → bot sends code → enter code here
 // @Tags         telegram
-// @Produce      json
+// @Accept       json
 // @Security     BearerAuth
-// @Success      200  {object}  object{code=string}
-// @Router       /api/v1/auth/telegram/connect [post]
-func GenerateTelegramCode(h *handlers.Handler) gin.HandlerFunc {
+// @Param        body  body  object{code=string}  true  "6-digit code from the bot"
+// @Success      200   {object}  object{message=string}
+// @Router       /api/v1/auth/telegram/verify [post]
+func VerifyTelegramCode(h *handlers.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var req struct {
+			Code string `json:"code" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+			return
+		}
 		userID := c.GetString(middleware.CtxUserID)
-		code, err := h.Telegram.GenerateCode(c.Request.Context(), userID)
-		if err != nil {
+		if err := h.Telegram.VerifyCode(c.Request.Context(), userID, req.Code); err != nil {
 			hs.Error(c, err)
 			return
 		}
-		hs.Success(c, gin.H{"code": code})
+		hs.Success(c, gin.H{"message": "Telegram account linked successfully"})
 	}
 }
 
@@ -77,7 +84,7 @@ func DisconnectTelegram(h *handlers.Handler) gin.HandlerFunc {
 // @Tags         telegram
 // @Accept       json
 // @Success      200
-// @Router       /api/v1/telegram/webhook [post]
+// @Router       /telegram/webhook [post]
 func TelegramWebhook(h *handlers.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if h.TelegramWebhookSecret != "" {
@@ -94,5 +101,49 @@ func TelegramWebhook(h *handlers.Handler) gin.HandlerFunc {
 		}
 		_ = h.Telegram.HandleUpdate(c.Request.Context(), &update)
 		c.Status(http.StatusOK)
+	}
+}
+
+// SetupTelegramWebhook godoc
+// @Summary      Register Telegram webhook with Telegram servers (admin only)
+// @Tags         telegram
+// @Security     BearerAuth
+// @Success      200  {object}  object{message=string}
+// @Router       /api/v1/admin/telegram/webhook [post]
+func SetupTelegramWebhook(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := h.Telegram.SetupWebhook(c.Request.Context()); err != nil {
+			hs.Error(c, err)
+			return
+		}
+		hs.Success(c, gin.H{"message": "webhook registered"})
+	}
+}
+
+// DeleteTelegramWebhook godoc
+// @Summary      Unregister Telegram webhook
+// @Tags         telegram
+// @Security     BearerAuth
+// @Success      200  {object}  object{message=string}
+// @Router       /api/v1/admin/telegram/webhook [delete]
+func DeleteTelegramWebhook(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := h.Telegram.DeleteWebhook(c.Request.Context()); err != nil {
+			hs.Error(c, err)
+			return
+		}
+		hs.Success(c, gin.H{"message": "webhook removed"})
+	}
+}
+
+// GetTelegramBotInfo godoc
+// @Summary      Get Telegram bot configuration info
+// @Tags         telegram
+// @Security     BearerAuth
+// @Success      200  {object}  entity.TelegramBotInfo
+// @Router       /api/v1/admin/telegram/info [get]
+func GetTelegramBotInfo(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		hs.Success(c, h.Telegram.BotInfo(c.Request.Context()))
 	}
 }

@@ -115,6 +115,9 @@ func (uc *useCase) UpdatePreference(ctx context.Context, userID string, req *ent
 	if req.DailyDigest != nil {
 		pref.DailyDigest = *req.DailyDigest
 	}
+	if req.TelegramEnabled != nil {
+		pref.TelegramEnabled = *req.TelegramEnabled
+	}
 	pref.UpdatedAt = time.Now().UTC()
 
 	if err := uc.notifRepo.UpsertPreference(ctx, pref); err != nil {

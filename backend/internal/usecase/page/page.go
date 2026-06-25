@@ -41,13 +41,15 @@ func New(
 	}
 }
 
-func (uc *useCase) Create(ctx context.Context, spaceID, authorID string, req *entity.CreatePageReq) (*entity.Page, error) {
-	isMember, err := uc.spaceRepo.IsMember(ctx, spaceID, authorID)
-	if err != nil {
-		return nil, fmt.Errorf("page.Create membership check: %w", err)
-	}
-	if !isMember {
-		return nil, apperr.Forbidden("you are not a member of this space")
+func (uc *useCase) Create(ctx context.Context, spaceID, authorID string, isAdmin bool, req *entity.CreatePageReq) (*entity.Page, error) {
+	if !isAdmin {
+		isMember, err := uc.spaceRepo.IsMember(ctx, spaceID, authorID)
+		if err != nil {
+			return nil, fmt.Errorf("page.Create membership check: %w", err)
+		}
+		if !isMember {
+			return nil, apperr.Forbidden("you are not a member of this space")
+		}
 	}
 
 	pos, err := uc.pageRepo.GetMaxPosition(ctx, spaceID, req.ParentID)
@@ -121,6 +123,9 @@ func (uc *useCase) Update(ctx context.Context, id, editorID string, req *entity.
 	if req.Title != nil {
 		p.Title = *req.Title
 	}
+	if req.Icon != nil {
+		p.Icon = *req.Icon
+	}
 	if req.Content != nil {
 		p.Content = req.Content
 	}
@@ -158,13 +163,13 @@ func (uc *useCase) Update(ctx context.Context, id, editorID string, req *entity.
 	return p, nil
 }
 
-func (uc *useCase) Delete(ctx context.Context, id, actorID string) error {
+func (uc *useCase) Delete(ctx context.Context, id, actorID string, isAdmin bool) error {
 	p, err := uc.pageRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	allowed := p.AuthorID == actorID
+	allowed := isAdmin || p.AuthorID == actorID
 	if !allowed {
 		// Space admin ham o'chira oladi
 		member, err := uc.spaceRepo.GetMember(ctx, p.SpaceID, actorID)

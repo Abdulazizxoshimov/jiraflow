@@ -123,4 +123,7 @@ type Handler struct {
 
 	TelegramWebhookSecret string
 	GitHubWebhookSecret   string
+
+	AllowOpenRegistration bool
+	FrontendBaseURL       string
 }

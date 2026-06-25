@@ -12,5 +12,7 @@ type TelegramRepository interface {
 	GetByChatID(ctx context.Context, chatID int64) (*entity.TelegramConnection, error)
 	GetByVerificationCode(ctx context.Context, code string) (*entity.TelegramConnection, error)
 	UpdateVerified(ctx context.Context, id string, telegramID, chatID int64, username string) error
+	// Link upserts a verified Telegram connection for the given web user.
+	Link(ctx context.Context, userID string, telegramID, chatID int64, username string) error
 	Delete(ctx context.Context, userID string) error
 }

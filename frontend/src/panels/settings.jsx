@@ -1,7 +1,13 @@
-// panels_settings.jsx — SettingsView tabs (Features 7–11) + Sprint capacity (25)
+import { useState } from 'react';
+import { Icon } from '../components/icons';
+import { Avatar, Badge, Button, Switch, Modal, Empty, useToast } from '../components/components';
+import { useApp } from '../store/AppContext';
+import { api, useApi } from '../api/api';
+import { adaptUser, fmtDate } from '../api/adapters';
+import { PillSelect } from '../views/board';
+import { MiniSpinner } from './issue';
 
-const PROJECT_ID = FORGE_DATA.ACTIVE_PROJECT_ID;
-const PRESET_COLORS = ["#6366F1", "#06B6D4", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#3B82F6", "#64748B", "#A855F7"];
+const PRESET_COLORS = ["#6366F1","#06B6D4","#10B981","#F59E0B","#EF4444","#8B5CF6","#EC4899","#14B8A6","#F97316","#3B82F6","#64748B","#A855F7"];
 const CAT_META = { todo: { label: "To do", tone: "muted" }, in_progress: { label: "In progress", tone: "info" }, done: { label: "Done", tone: "success" } };
 
 function Loading({ label }) {
@@ -10,7 +16,7 @@ function Loading({ label }) {
 function ErrorNote({ msg }) {
   return <div className="card card-pad text-sm" style={{ color: "var(--danger)", borderColor: "var(--danger)" }}><Icon name="x" size={14}/> {msg}</div>;
 }
-function ColorPicker({ value, onChange }) {
+export function ColorPicker({ value, onChange }) {
   return (
     <div className="row gap-2" style={{ flexWrap: "wrap" }}>
       {PRESET_COLORS.map((c) => (
@@ -20,7 +26,7 @@ function ColorPicker({ value, onChange }) {
     </div>
   );
 }
-function ConfirmDelete({ open, onClose, onConfirm, title, body }) {
+export function ConfirmDelete({ open, onClose, onConfirm, title, body }) {
   return (
     <Modal open={open} onClose={onClose} title={title || "Confirm delete"}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="danger" icon="trash" onClick={() => { onConfirm(); onClose(); }}>Delete</Button></>}>
@@ -30,12 +36,12 @@ function ConfirmDelete({ open, onClose, onConfirm, title, body }) {
 }
 
 // ─── Feature 7: Workflow management ───────────────────────────────────
-function WorkflowTab() {
+export function WorkflowTab() {
   const { data: workflows, loading, error, reload } = useApi("/workflows");
-  const [expanded, setExpanded] = React.useState(null);
-  const [newOpen, setNewOpen] = React.useState(false);
-  const [name, setName] = React.useState("");
-  const [confirm, setConfirm] = React.useState(null);
+  const [expanded, setExpanded] = useState(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [confirm, setConfirm] = useState(null);
   const toast = useToast();
 
   async function create() {
@@ -83,9 +89,9 @@ function WorkflowTab() {
 
 function WorkflowDetail({ id }) {
   const { data: wf, loading, reload } = useApi("/workflows/" + id);
-  const [addOpen, setAddOpen] = React.useState(false);
-  const [sName, setSName] = React.useState(""); const [sCat, setSCat] = React.useState("todo"); const [sColor, setSColor] = React.useState(PRESET_COLORS[0]);
-  const [trFrom, setTrFrom] = React.useState(""); const [trTo, setTrTo] = React.useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [sName, setSName] = useState(""); const [sCat, setSCat] = useState("todo"); const [sColor, setSColor] = useState(PRESET_COLORS[0]);
+  const [trFrom, setTrFrom] = useState(""); const [trTo, setTrTo] = useState("");
   const toast = useToast();
 
   if (loading || !wf) return <div style={{ borderTop: "1px solid var(--border)" }}><Loading/></div>;
@@ -182,20 +188,21 @@ function WorkflowDetail({ id }) {
 }
 
 // ─── Feature 8a: Components ───────────────────────────────────────────
-function ComponentsTab() {
-  const { data: comps, loading, error, reload } = useApi("/projects/" + PROJECT_ID + "/components");
-  const [modal, setModal] = React.useState(false);
-  const [editing, setEditing] = React.useState(null);
-  const [form, setForm] = React.useState({ name: "", description: "", lead_id: FORGE_DATA.PEOPLE[0].id });
-  const [confirm, setConfirm] = React.useState(null);
+export function ComponentsTab() {
+  const { activeProjectId, people } = useApp();
+  const { data: comps, loading, error, reload } = useApi(activeProjectId ? "/projects/" + activeProjectId + "/components" : null);
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name: "", description: "", lead_id: "" });
+  const [confirm, setConfirm] = useState(null);
   const toast = useToast();
 
-  function open(c) { setEditing(c); setForm(c ? { name: c.name, description: c.description, lead_id: c.lead_id || FORGE_DATA.PEOPLE[0].id } : { name: "", description: "", lead_id: FORGE_DATA.PEOPLE[0].id }); setModal(true); }
+  function open(c) { setEditing(c); setForm(c ? { name: c.name, description: c.description, lead_id: c.lead_id || "" } : { name: "", description: "", lead_id: "" }); setModal(true); }
   async function save() {
     if (!form.name.trim()) return;
     try {
       if (editing) await api("/components/" + editing.id, { method: "PUT", body: form });
-      else await api("/projects/" + PROJECT_ID + "/components", { method: "POST", body: form });
+      else await api("/projects/" + activeProjectId + "/components", { method: "POST", body: form });
       toast(editing ? "Component updated" : "Component added"); setModal(false); reload();
     } catch (e) { toast(e.message, { icon: "x", color: "#F87171" }); }
   }
@@ -236,7 +243,7 @@ function ComponentsTab() {
         <div className="stack gap-3">
           <div><label className="label">Name</label><input className="input" autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. API gateway"/></div>
           <div><label className="label">Description</label><textarea className="textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ minHeight: 60 }}/></div>
-          <div><label className="label">Lead</label><PillSelect value={form.lead_id} onChange={(v) => setForm({ ...form, lead_id: v })} options={FORGE_DATA.PEOPLE.map((u) => ({ id: u.id, label: u.name }))}/></div>
+          <div><label className="label">Lead</label><PillSelect value={form.lead_id} onChange={(v) => setForm({ ...form, lead_id: v })} options={people.map((u) => ({ id: u.id, label: u.name }))}/></div>
         </div>
       </Modal>
       <ConfirmDelete open={!!confirm} onClose={() => setConfirm(null)} onConfirm={() => del(confirm.id)} body={confirm ? `Delete component "${confirm.name}"?` : ""}/>
@@ -245,17 +252,18 @@ function ComponentsTab() {
 }
 
 // ─── Feature 8b: Versions ─────────────────────────────────────────────
-function VersionsTab() {
-  const { data: versions, loading, error, reload } = useApi("/projects/" + PROJECT_ID + "/versions");
-  const [modal, setModal] = React.useState(false);
-  const [form, setForm] = React.useState({ name: "", start_date: "", release_date: "", description: "" });
-  const [confirm, setConfirm] = React.useState(null);
+export function VersionsTab() {
+  const { activeProjectId } = useApp();
+  const { data: versions, loading, error, reload } = useApi(activeProjectId ? "/projects/" + activeProjectId + "/versions" : null);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ name: "", start_date: "", release_date: "", description: "" });
+  const [confirm, setConfirm] = useState(null);
   const toast = useToast();
   const tone = { unreleased: "info", released: "success", archived: "muted" };
 
   async function save() {
     if (!form.name.trim()) return;
-    try { await api("/projects/" + PROJECT_ID + "/versions", { method: "POST", body: form }); toast("Version created"); setModal(false); setForm({ name: "", start_date: "", release_date: "", description: "" }); reload(); }
+    try { await api("/projects/" + activeProjectId + "/versions", { method: "POST", body: form }); toast("Version created"); setModal(false); setForm({ name: "", start_date: "", release_date: "", description: "" }); reload(); }
     catch (e) { toast(e.message, { icon: "x", color: "#F87171" }); }
   }
   async function release(id) { try { await api("/versions/" + id + "/release", { method: "POST" }); toast("Version released"); reload(); } catch (e) { toast(e.message, { icon: "x", color: "#F87171" }); } }
@@ -309,17 +317,18 @@ function VersionsTab() {
 
 // ─── Feature 9: Custom fields ─────────────────────────────────────────
 const FIELD_TYPES = ["text", "number", "date", "select", "user", "url"];
-function CustomFieldsTab() {
-  const { data: fields, loading, error, reload, setData } = useApi("/projects/" + PROJECT_ID + "/custom-fields");
-  const [modal, setModal] = React.useState(false);
-  const [form, setForm] = React.useState({ name: "", type: "text", description: "", required: false, options: [] });
-  const [optInput, setOptInput] = React.useState("");
-  const [confirm, setConfirm] = React.useState(null);
+export function CustomFieldsTab() {
+  const { activeProjectId } = useApp();
+  const { data: fields, loading, error, reload, setData } = useApi(activeProjectId ? "/projects/" + activeProjectId + "/custom-fields" : null);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ name: "", type: "text", description: "", required: false, options: [] });
+  const [optInput, setOptInput] = useState("");
+  const [confirm, setConfirm] = useState(null);
   const toast = useToast();
 
   async function save() {
     if (!form.name.trim()) return;
-    try { await api("/projects/" + PROJECT_ID + "/custom-fields", { method: "POST", body: form }); toast("Field added"); setModal(false); setForm({ name: "", type: "text", description: "", required: false, options: [] }); reload(); }
+    try { await api("/projects/" + activeProjectId + "/custom-fields", { method: "POST", body: form }); toast("Field added"); setModal(false); setForm({ name: "", type: "text", description: "", required: false, options: [] }); reload(); }
     catch (e) { toast(e.message, { icon: "x", color: "#F87171" }); }
   }
   async function toggleReq(f) {
@@ -393,17 +402,18 @@ function CustomFieldsTab() {
 }
 
 // ─── Feature 10: Labels ───────────────────────────────────────────────
-function LabelsTab() {
-  const { data: labels, loading, error, reload, setData } = useApi("/projects/" + PROJECT_ID + "/labels");
-  const [adding, setAdding] = React.useState(false);
-  const [name, setName] = React.useState(""); const [color, setColor] = React.useState(PRESET_COLORS[0]);
-  const [editing, setEditing] = React.useState(null);
-  const [confirm, setConfirm] = React.useState(null);
+export function LabelsTab() {
+  const { activeProjectId } = useApp();
+  const { data: labels, loading, error, reload, setData } = useApi(activeProjectId ? "/projects/" + activeProjectId + "/labels" : null);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState(""); const [color, setColor] = useState(PRESET_COLORS[0]);
+  const [editing, setEditing] = useState(null);
+  const [confirm, setConfirm] = useState(null);
   const toast = useToast();
 
   async function create() {
     if (!name.trim()) return;
-    try { await api("/projects/" + PROJECT_ID + "/labels", { method: "POST", body: { name, color } }); toast("Label created"); setAdding(false); setName(""); reload(); }
+    try { await api("/projects/" + activeProjectId + "/labels", { method: "POST", body: { name, color } }); toast("Label created"); setAdding(false); setName(""); reload(); }
     catch (e) { toast(e.message, { icon: "x", color: "#F87171" }); }
   }
   async function saveEdit(l) {
@@ -464,13 +474,14 @@ function LabelsTab() {
 }
 
 // ─── Feature 11: Webhooks ─────────────────────────────────────────────
-const WEBHOOK_EVENTS = ["issue.created", "issue.updated", "issue.transition", "issue.assigned", "sprint.started", "sprint.completed", "page.created", "page.updated"];
-function WebhooksTab() {
-  const { data: hooks, loading, error, reload, setData } = useApi("/projects/" + PROJECT_ID + "/webhooks");
-  const [modal, setModal] = React.useState(false);
-  const [form, setForm] = React.useState({ url: "", secret: "", events: [], is_active: true });
-  const [expanded, setExpanded] = React.useState(null);
-  const [confirm, setConfirm] = React.useState(null);
+const WEBHOOK_EVENTS = ["issue.created","issue.updated","issue.transition","issue.assigned","sprint.started","sprint.completed","page.created","page.updated"];
+export function WebhooksTab() {
+  const { activeProjectId } = useApp();
+  const { data: hooks, loading, error, reload, setData } = useApi(activeProjectId ? "/projects/" + activeProjectId + "/webhooks" : null);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ url: "", secret: "", events: [], is_active: true });
+  const [expanded, setExpanded] = useState(null);
+  const [confirm, setConfirm] = useState(null);
   const toast = useToast();
 
   async function create() {
@@ -562,10 +573,11 @@ function WebhookDeliveries({ id }) {
 }
 
 // ─── Feature 25: Sprint capacity ──────────────────────────────────────
-function SprintCapacity({ sprintId = "s24" }) {
-  const { data, loading, error, reload, setData } = useApi("/sprints/" + sprintId + "/capacity");
-  const [modal, setModal] = React.useState(false);
-  const [draft, setDraft] = React.useState([]);
+export function SprintCapacity({ sprintId }) {
+  const { people } = useApp();
+  const { data, loading, error, reload, setData } = useApi(sprintId ? "/sprints/" + sprintId + "/capacity" : null);
+  const [modal, setModal] = useState(false);
+  const [draft, setDraft] = useState([]);
   const toast = useToast();
 
   function openModal() { setDraft((data.members || []).map((m) => ({ user_id: m.user_id, available_hours: m.available_hours }))); setModal(true); }
@@ -576,6 +588,7 @@ function SprintCapacity({ sprintId = "s24" }) {
 
   if (loading) return <div className="card" style={{ marginBottom: 16 }}><div className="card-head"><h3>Capacity</h3></div><Loading/></div>;
   if (error) return <ErrorNote msg={error}/>;
+  if (!data) return null;
 
   const members = data.members || [];
   const totals = members.reduce((a, m) => ({ avail: a.avail + m.available_hours, logged: a.logged + m.logged_hours }), { avail: 0, logged: 0 });
@@ -591,7 +604,7 @@ function SprintCapacity({ sprintId = "s24" }) {
           <thead><tr><th>Member</th><th style={{ width: 120 }}>Available</th><th style={{ width: 120 }}>Logged</th><th style={{ width: 120 }}>Remaining</th><th style={{ width: 220 }}>Utilization</th></tr></thead>
           <tbody>
             {members.map((m) => {
-              const u = m.user || FORGE_DATA.PEOPLE.find((p) => p.id === m.user_id);
+              const u = m.user ? adaptUser(m.user) : people.find((p) => p.id === m.user_id) || { name: m.user_id, initials: "?", color: "#94A3B8" };
               const util = m.available_hours ? Math.round((m.logged_hours / m.available_hours) * 100) : 0;
               const col = util > 100 ? "var(--danger)" : util >= 80 ? "var(--warning)" : "var(--success)";
               return (
@@ -626,7 +639,7 @@ function SprintCapacity({ sprintId = "s24" }) {
         footer={<><Button onClick={() => setModal(false)}>Cancel</Button><Button variant="primary" onClick={save}>Save capacity</Button></>}>
         <div className="stack gap-2">
           {draft.map((d, i) => {
-            const u = FORGE_DATA.PEOPLE.find((p) => p.id === d.user_id);
+            const u = people.find((p) => p.id === d.user_id) || { name: d.user_id, initials: "?", color: "#94A3B8" };
             return (
               <div key={d.user_id} className="row gap-3" style={{ padding: "6px 0" }}>
                 <Avatar user={u} size="sm"/>
@@ -642,4 +655,140 @@ function SprintCapacity({ sprintId = "s24" }) {
   );
 }
 
-Object.assign(window, { WorkflowTab, ComponentsTab, VersionsTab, CustomFieldsTab, LabelsTab, WebhooksTab, SprintCapacity, ConfirmDelete, ColorPicker });
+// ─── Automation rules tab ─────────────────────────────
+const TRIGGER_LABELS = {
+  "issue.created":          "Issue created",
+  "issue.status_changed":   "Status changed",
+  "issue.assigned":         "Issue assigned",
+  "sprint.started":         "Sprint started",
+  "sprint.completed":       "Sprint completed",
+  "comment.added":          "Comment added",
+};
+const ACTION_LABELS = {
+  "assign":                 "Assign to user",
+  "notify":                 "Send notification",
+  "set_label":              "Add label",
+  "set_priority":           "Set priority",
+  "move_to_status":         "Move to status",
+  "create_issue":           "Create linked issue",
+};
+
+export function AutomationTab() {
+  const { activeProjectId } = useApp();
+  const { data: rules, loading, error, reload } = useApi(
+    activeProjectId ? "/projects/" + activeProjectId + "/automation-rules" : "/automation-rules",
+    [activeProjectId]
+  );
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ name: "", trigger: "issue.created", action: "notify", condition: "", enabled: true });
+  const [saving, setSaving] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const toast = useToast();
+
+  async function create() {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try {
+      await api(activeProjectId ? "/projects/" + activeProjectId + "/automation-rules" : "/automation-rules", {
+        method: "POST", body: form,
+      });
+      toast("Automation rule created");
+      setModal(false);
+      setForm({ name: "", trigger: "issue.created", action: "notify", condition: "", enabled: true });
+      reload();
+    } catch (e) { toast(e.message, { icon: "x", color: "#F87171" }); }
+    finally { setSaving(false); }
+  }
+
+  async function toggle(rule) {
+    try {
+      await api("/automation-rules/" + rule.id, { method: "PUT", body: { enabled: !rule.enabled } });
+      reload();
+    } catch (e) { toast(e.message, { icon: "x", color: "#F87171" }); }
+  }
+
+  async function del(id) {
+    try {
+      await api("/automation-rules/" + id, { method: "DELETE" });
+      toast("Rule deleted"); reload();
+    } catch (e) { toast(e.message, { icon: "x", color: "#F87171" }); }
+    finally { setConfirm(null); }
+  }
+
+  if (loading) return <Loading label="Loading automation rules…"/>;
+
+  const list = rules?.items || rules || [];
+
+  return (
+    <div className="stack gap-3">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <div>
+          <div className="bold">Automation rules</div>
+          <div className="text-sm secondary">Automate repetitive tasks with triggers and actions.</div>
+        </div>
+        <Button variant="primary" icon="plus" data-size="sm" onClick={() => setModal(true)}>New rule</Button>
+      </div>
+
+      {list.length === 0 && !error && (
+        <Empty icon="bolt" title="No automation rules" hint="Create a rule to automate workflows — e.g. assign new issues, send notifications, or move status."/>
+      )}
+      {error && <ErrorNote msg={error}/>}
+
+      <div className="stack gap-2">
+        {list.map((rule) => (
+          <div key={rule.id} className="card" style={{ padding: "12px 16px" }}>
+            <div className="row gap-3">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="row gap-2" style={{ marginBottom: 4 }}>
+                  <span className="bold text-sm">{rule.name}</span>
+                  {!rule.enabled && <Badge tone="muted">Disabled</Badge>}
+                </div>
+                <div className="text-xs secondary row gap-2">
+                  <span className="badge" data-tone="info" style={{ padding: "1px 7px" }}>{TRIGGER_LABELS[rule.trigger] || rule.trigger}</span>
+                  <Icon name="arrowRight" size={11} color="var(--text-muted)"/>
+                  <span className="badge" data-tone="success" style={{ padding: "1px 7px" }}>{ACTION_LABELS[rule.action] || rule.action}</span>
+                  {rule.last_run_at && <span className="muted">· last ran {fmtDate(rule.last_run_at)}</span>}
+                </div>
+              </div>
+              <div className="row gap-2">
+                <Switch on={rule.enabled} onChange={() => toggle(rule)}/>
+                <button className="icon-btn" title="Delete rule" onClick={() => setConfirm(rule)}>
+                  <Icon name="trash" size={14}/>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Modal open={modal} onClose={() => setModal(false)} title="Create automation rule"
+        footer={<><Button onClick={() => setModal(false)}>Cancel</Button><Button variant="primary" disabled={!form.name.trim() || saving} onClick={create}>{saving ? "Creating…" : "Create rule"}</Button></>}>
+        <div className="stack gap-3">
+          <div>
+            <label className="label">Rule name</label>
+            <input className="input" autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Auto-assign bugs to QA"/>
+          </div>
+          <div>
+            <label className="label">When (trigger)</label>
+            <select className="select" value={form.trigger} onChange={(e) => setForm({ ...form, trigger: e.target.value })}>
+              {Object.entries(TRIGGER_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Then (action)</label>
+            <select className="select" value={form.action} onChange={(e) => setForm({ ...form, action: e.target.value })}>
+              {Object.entries(ACTION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Condition <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>(optional)</span></label>
+            <input className="input" value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })} placeholder="e.g. priority = Critical"/>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDelete open={!!confirm} onClose={() => setConfirm(null)} onConfirm={() => del(confirm.id)}
+        title="Delete rule" body={confirm ? `Delete "${confirm.name}"? This cannot be undone.` : ""}/>
+    </div>
+  );
+}

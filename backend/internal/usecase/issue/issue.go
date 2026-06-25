@@ -3,12 +3,15 @@ package issue
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
 	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
+	ws "github.com/jira-backend/jiraflow-backend/internal/infrastructure/websocket"
 	apperr "github.com/jira-backend/jiraflow-backend/internal/pkg/errors"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/lexorank"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
@@ -22,6 +25,7 @@ type useCase struct {
 	versionRepo  repository.VersionRepository
 	memberRepo   repository.ProjectMemberRepository
 	dispatcher   notification.Dispatcher
+	hub          *ws.Hub
 	log          logger.Logger
 }
 
@@ -32,6 +36,7 @@ func New(
 	versionRepo repository.VersionRepository,
 	memberRepo repository.ProjectMemberRepository,
 	dispatcher notification.Dispatcher,
+	hub *ws.Hub,
 	log logger.Logger,
 ) UseCase {
 	return &useCase{
@@ -41,22 +46,25 @@ func New(
 		versionRepo:  versionRepo,
 		memberRepo:   memberRepo,
 		dispatcher:   dispatcher,
+		hub:          hub,
 		log:          log,
 	}
 }
 
-func (uc *useCase) Create(ctx context.Context, projectID string, req *entity.CreateIssueReq, reporterID string) (*entity.Issue, error) {
+func (uc *useCase) Create(ctx context.Context, projectID string, req *entity.CreateIssueReq, reporterID string, isAdmin bool) (*entity.Issue, error) {
 	project, err := uc.projectRepo.GetByID(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	isMember, err := uc.memberRepo.IsMember(ctx, projectID, reporterID)
-	if err != nil {
-		return nil, fmt.Errorf("issue.Create membership check: %w", err)
-	}
-	if !isMember {
-		return nil, apperr.Forbidden("you are not a member of this project")
+	if !isAdmin {
+		isMember, err := uc.memberRepo.IsMember(ctx, projectID, reporterID)
+		if err != nil {
+			return nil, fmt.Errorf("issue.Create membership check: %w", err)
+		}
+		if !isMember {
+			return nil, apperr.Forbidden("you are not a member of this project")
+		}
 	}
 
 	wf, err := uc.workflowRepo.GetWithDetails(ctx, project.WorkflowID)
@@ -85,6 +93,17 @@ func (uc *useCase) Create(ctx context.Context, projectID string, req *entity.Cre
 	priority := req.Priority
 	if priority == "" {
 		priority = "medium"
+	}
+
+	// omitempty doesn't skip empty strings for *string — coerce "" to nil so DB never sees an invalid UUID.
+	if req.ParentID != nil && *req.ParentID == "" {
+		req.ParentID = nil
+	}
+	if req.AssigneeID != nil && *req.AssigneeID == "" {
+		req.AssigneeID = nil
+	}
+	if req.SprintID != nil && *req.SprintID == "" {
+		req.SprintID = nil
 	}
 
 	now := time.Now().UTC()
@@ -117,22 +136,30 @@ func (uc *useCase) Create(ctx context.Context, projectID string, req *entity.Cre
 	}
 
 	if len(req.LabelIDs) > 0 {
-		_ = uc.issueRepo.SetLabels(ctx, issue.ID, req.LabelIDs)
+		if err := uc.issueRepo.SetLabels(ctx, issue.ID, req.LabelIDs); err != nil {
+			uc.log.Warn(ctx, "issue.Create: set labels failed", logger.String("id", issue.ID), logger.SafeString("err", err.Error()))
+		}
 	}
 	if len(req.FixVersionIDs) > 0 {
-		_ = uc.versionRepo.SetIssueVersions(ctx, issue.ID, req.FixVersionIDs)
+		if err := uc.versionRepo.SetIssueVersions(ctx, issue.ID, req.FixVersionIDs); err != nil {
+			uc.log.Warn(ctx, "issue.Create: set fix versions failed", logger.String("id", issue.ID), logger.SafeString("err", err.Error()))
+		}
 	}
 	if len(req.AffectsVersionIDs) > 0 {
-		_ = uc.versionRepo.SetIssueAffectsVersions(ctx, issue.ID, req.AffectsVersionIDs)
+		if err := uc.versionRepo.SetIssueAffectsVersions(ctx, issue.ID, req.AffectsVersionIDs); err != nil {
+			uc.log.Warn(ctx, "issue.Create: set affects versions failed", logger.String("id", issue.ID), logger.SafeString("err", err.Error()))
+		}
 	}
 
 	watcher := &entity.IssueWatcher{IssueID: issue.ID, UserID: reporterID, CreatedAt: now}
-	_ = uc.issueRepo.AddWatcher(ctx, watcher)
+	if err := uc.issueRepo.AddWatcher(ctx, watcher); err != nil {
+		uc.log.Warn(ctx, "issue.Create: add watcher failed", logger.String("id", issue.ID), logger.SafeString("err", err.Error()))
+	}
 
 	if issue.AssigneeID != nil {
-		go uc.dispatcher.IssueAssigned(ctx, issue, *issue.AssigneeID, reporterID)
+		go uc.dispatcher.IssueAssigned(context.Background(), issue, *issue.AssigneeID, reporterID)
 	}
-	go uc.dispatcher.IssueCreated(ctx, issue, reporterID)
+	go uc.dispatcher.IssueCreated(context.Background(), issue, reporterID)
 
 	uc.log.Info(ctx, "issue created", logger.String("id", issue.ID), logger.String("project_id", projectID))
 	return issue, nil
@@ -143,20 +170,7 @@ func (uc *useCase) GetByID(ctx context.Context, id string) (*entity.Issue, error
 	if err != nil {
 		return nil, err
 	}
-	labels, _ := uc.issueRepo.GetLabels(ctx, id)
-	for _, l := range labels {
-		issue.Labels = append(issue.Labels, *l)
-	}
-	if fixVers, err := uc.versionRepo.GetIssueVersions(ctx, id); err == nil {
-		for _, v := range fixVers {
-			issue.Versions = append(issue.Versions, *v)
-		}
-	}
-	if affVers, err := uc.versionRepo.GetIssueAffectsVersions(ctx, id); err == nil {
-		for _, v := range affVers {
-			issue.AffectsVersions = append(issue.AffectsVersions, *v)
-		}
-	}
+	uc.hydrate(ctx, issue)
 	return issue, nil
 }
 
@@ -165,11 +179,56 @@ func (uc *useCase) GetByKey(ctx context.Context, key string) (*entity.Issue, err
 	if err != nil {
 		return nil, err
 	}
-	labels, _ := uc.issueRepo.GetLabels(ctx, issue.ID)
+	uc.hydrate(ctx, issue)
+	return issue, nil
+}
+
+// hydrate fetches labels, fix versions, and affects versions in parallel.
+func (uc *useCase) hydrate(ctx context.Context, issue *entity.Issue) {
+	var (
+		mu      sync.Mutex
+		labels  []*entity.Label
+		fixVers []*entity.Version
+		affVers []*entity.Version
+	)
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		l, err := uc.issueRepo.GetLabels(gctx, issue.ID)
+		if err == nil {
+			mu.Lock()
+			labels = l
+			mu.Unlock()
+		}
+		return nil
+	})
+	g.Go(func() error {
+		v, err := uc.versionRepo.GetIssueVersions(gctx, issue.ID)
+		if err == nil {
+			mu.Lock()
+			fixVers = v
+			mu.Unlock()
+		}
+		return nil
+	})
+	g.Go(func() error {
+		v, err := uc.versionRepo.GetIssueAffectsVersions(gctx, issue.ID)
+		if err == nil {
+			mu.Lock()
+			affVers = v
+			mu.Unlock()
+		}
+		return nil
+	})
+	_ = g.Wait()
 	for _, l := range labels {
 		issue.Labels = append(issue.Labels, *l)
 	}
-	return issue, nil
+	for _, v := range fixVers {
+		issue.Versions = append(issue.Versions, *v)
+	}
+	for _, v := range affVers {
+		issue.AffectsVersions = append(issue.AffectsVersions, *v)
+	}
 }
 
 func (uc *useCase) List(ctx context.Context, filter *entity.IssueFilter) ([]*entity.Issue, int, error) {
@@ -239,17 +298,18 @@ func (uc *useCase) Update(ctx context.Context, id string, req *entity.UpdateIssu
 	if req.AssigneeID != nil && issue.AssigneeID != nil {
 		newID := *issue.AssigneeID
 		if prevAssigneeID == nil || *prevAssigneeID != newID {
-			go uc.dispatcher.IssueAssigned(ctx, issue, newID, actorID)
+			go uc.dispatcher.IssueAssigned(context.Background(), issue, newID, actorID)
 		}
 	}
 
 	go func() {
-		watchers, _ := uc.issueRepo.ListWatchers(ctx, id)
+		bg := context.Background()
+		watchers, _ := uc.issueRepo.ListWatchers(bg, id)
 		ids := make([]string, 0, len(watchers))
 		for _, w := range watchers {
 			ids = append(ids, w.UserID)
 		}
-		uc.dispatcher.IssueUpdated(context.Background(), issue, ids, actorID)
+		uc.dispatcher.IssueUpdated(bg, issue, ids, actorID)
 	}()
 
 	uc.log.Info(ctx, "issue updated", logger.String("id", id))
@@ -299,24 +359,31 @@ func (uc *useCase) Transition(ctx context.Context, id, statusID, actorID string)
 	}
 
 	h := &entity.IssueHistory{
-		ID:      uuid.NewString(),
-		IssueID: id,
-		UserID:  &actorID,
-		Field:   "status",
-		OldValue: map[string]any{"status_id": oldStatusID},
-		NewValue: map[string]any{"status_id": statusID},
+		ID:        uuid.NewString(),
+		IssueID:   id,
+		UserID:    &actorID,
+		Field:     "status",
+		OldValue:  map[string]any{"status_id": oldStatusID},
+		NewValue:  map[string]any{"status_id": statusID},
 		CreatedAt: time.Now().UTC(),
 	}
 	_ = uc.issueRepo.CreateHistory(ctx, h)
 
 	go func() {
-		watchers, _ := uc.issueRepo.ListWatchers(ctx, id)
+		bg := context.Background()
+		watchers, _ := uc.issueRepo.ListWatchers(bg, id)
 		ids := make([]string, 0, len(watchers))
 		for _, w := range watchers {
 			ids = append(ids, w.UserID)
 		}
-		uc.dispatcher.IssueStatusChanged(ctx, issue, ids, actorID)
+		uc.dispatcher.IssueStatusChanged(bg, issue, ids, actorID)
 	}()
+
+	if uc.hub != nil {
+		uc.hub.BroadcastToRoom(ws.NewIssueUpdatedMsg(issue.ProjectID, map[string]any{
+			"id": issue.ID, "status_id": statusID, "project_id": issue.ProjectID,
+		}))
+	}
 
 	uc.log.Info(ctx, "issue transitioned", logger.String("id", id), logger.String("status_id", statusID))
 	return issue, nil
@@ -390,6 +457,89 @@ func (uc *useCase) BulkUpdate(ctx context.Context, req *entity.BulkUpdateIssueRe
 		Failed:  failed,
 		Total:   len(req.IssueIDs),
 	}, nil
+}
+
+func (uc *useCase) BulkCreate(ctx context.Context, projectID string, req *entity.BulkCreateIssueReq, reporterID string) (*entity.BulkCreateResult, error) {
+	project, err := uc.projectRepo.GetByID(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	wf, err := uc.workflowRepo.GetWithDetails(ctx, project.WorkflowID)
+	if err != nil {
+		return nil, fmt.Errorf("issue.BulkCreate get workflow: %w", err)
+	}
+
+	var initialStatusID string
+	for _, s := range wf.Statuses {
+		if s.IsInitial {
+			initialStatusID = s.ID
+			break
+		}
+	}
+	if initialStatusID == "" && len(wf.Statuses) > 0 {
+		initialStatusID = wf.Statuses[0].ID
+	}
+
+	// Allocate all counters in one DB round-trip.
+	startCounter, err := uc.projectRepo.AllocateIssueCounters(ctx, projectID, len(req.Issues))
+	if err != nil {
+		return nil, fmt.Errorf("issue.BulkCreate allocate counters: %w", err)
+	}
+
+	now := time.Now().UTC()
+	issues := make([]*entity.Issue, 0, len(req.Issues))
+	result := &entity.BulkCreateResult{Total: len(req.Issues)}
+
+	for i, r := range req.Issues {
+		if r.ParentID != nil && *r.ParentID == "" {
+			r.ParentID = nil
+		}
+		if r.AssigneeID != nil && *r.AssigneeID == "" {
+			r.AssigneeID = nil
+		}
+		if r.SprintID != nil && *r.SprintID == "" {
+			r.SprintID = nil
+		}
+
+		priority := r.Priority
+		if priority == "" {
+			priority = "medium"
+		}
+		cf := r.CustomFields
+		if cf == nil {
+			cf = map[string]any{}
+		}
+
+		issues = append(issues, &entity.Issue{
+			ID:           uuid.NewString(),
+			ProjectID:    projectID,
+			IssueNumber:  int(startCounter) + i,
+			Title:        r.Title,
+			Description:  r.Description,
+			Type:         r.Type,
+			StatusID:     initialStatusID,
+			Priority:     priority,
+			AssigneeID:   r.AssigneeID,
+			ReporterID:   reporterID,
+			ParentID:     r.ParentID,
+			SprintID:     r.SprintID,
+			StoryPoints:  r.StoryPoints,
+			DueDate:      r.DueDate,
+			CustomFields: cf,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		})
+	}
+
+	if err := uc.issueRepo.BulkCreate(ctx, issues); err != nil {
+		uc.log.Error(ctx, "issue.BulkCreate: db error", logger.String("project_id", projectID), logger.SafeString("err", err.Error()))
+		return nil, fmt.Errorf("issue.BulkCreate: %w", err)
+	}
+
+	result.Created = issues
+	uc.log.Info(ctx, "issues bulk created", logger.String("project_id", projectID), logger.Int("count", len(issues)))
+	return result, nil
 }
 
 func (uc *useCase) BulkDelete(ctx context.Context, req *entity.BulkDeleteIssueReq, actorID string) error {
@@ -478,7 +628,7 @@ func (uc *useCase) Clone(ctx context.Context, id, reporterID string, req *entity
 	watcher := &entity.IssueWatcher{IssueID: clone.ID, UserID: reporterID, CreatedAt: now}
 	_ = uc.issueRepo.AddWatcher(ctx, watcher)
 
-	go uc.dispatcher.IssueCreated(ctx, clone, reporterID)
+	go uc.dispatcher.IssueCreated(context.Background(), clone, reporterID)
 
 	uc.log.Info(ctx, "issue cloned", logger.String("src", id), logger.String("clone", clone.ID))
 	return clone, nil
@@ -552,12 +702,13 @@ func (uc *useCase) MoveOnBoard(ctx context.Context, issueID string, req *entity.
 		_ = uc.issueRepo.CreateHistory(ctx, h)
 
 		go func() {
-			watchers, _ := uc.issueRepo.ListWatchers(ctx, issueID)
+			bg := context.Background()
+			watchers, _ := uc.issueRepo.ListWatchers(bg, issueID)
 			ids := make([]string, 0, len(watchers))
 			for _, w := range watchers {
 				ids = append(ids, w.UserID)
 			}
-			uc.dispatcher.IssueStatusChanged(context.Background(), issue, ids, actorID)
+			uc.dispatcher.IssueStatusChanged(bg, issue, ids, actorID)
 		}()
 	}
 
@@ -566,6 +717,12 @@ func (uc *useCase) MoveOnBoard(ctx context.Context, issueID string, req *entity.
 			{IssueID: issueID, Position: req.Position},
 		})
 		issue.Position = req.Position
+	}
+
+	if uc.hub != nil {
+		uc.hub.BroadcastToRoom(ws.NewIssueMovedMsg(issue.ProjectID, map[string]any{
+			"id": issue.ID, "status_id": issue.StatusID, "position": issue.Position, "project_id": issue.ProjectID,
+		}))
 	}
 
 	uc.log.Info(ctx, "issue moved on board",

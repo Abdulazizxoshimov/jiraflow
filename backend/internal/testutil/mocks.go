@@ -9,6 +9,7 @@ import (
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
 	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
+	"github.com/jira-backend/jiraflow-backend/internal/pkg/token"
 	"github.com/jira-backend/jiraflow-backend/internal/usecase/notification"
 )
 
@@ -42,6 +43,7 @@ type IssueRepoMock struct {
 	IsWatcherFn           func(ctx context.Context, issueID, userID string) (bool, error)
 	CreateHistoryFn       func(ctx context.Context, h *entity.IssueHistory) error
 	ListHistoryFn         func(ctx context.Context, issueID string, filter *entity.Filter) ([]*entity.IssueHistory, int, error)
+	BulkCreateFn          func(ctx context.Context, issues []*entity.Issue) error
 	BulkUpdatePositionsFn func(ctx context.Context, items []entity.IssuePositionItem) error
 	BulkUpdateFn          func(ctx context.Context, req *entity.BulkUpdateIssueReq) ([]string, error)
 	BulkDeleteFn          func(ctx context.Context, issueIDs []string) error
@@ -163,6 +165,12 @@ func (m *IssueRepoMock) BulkUpdatePositions(ctx context.Context, items []entity.
 	}
 	return nil
 }
+func (m *IssueRepoMock) BulkCreate(ctx context.Context, issues []*entity.Issue) error {
+	if m.BulkCreateFn != nil {
+		return m.BulkCreateFn(ctx, issues)
+	}
+	return nil
+}
 func (m *IssueRepoMock) BulkUpdate(ctx context.Context, req *entity.BulkUpdateIssueReq) ([]string, error) {
 	if m.BulkUpdateFn != nil {
 		return m.BulkUpdateFn(ctx, req)
@@ -215,15 +223,16 @@ func (m *IssueRepoMock) GetRankNeighbors(ctx context.Context, projectID string, 
 // ─── ProjectRepository ───────────────────────────────────────────────────────
 
 type ProjectRepoMock struct {
-	GetByIDFn                func(ctx context.Context, id string) (*entity.Project, error)
-	GetByKeyFn               func(ctx context.Context, key string) (*entity.Project, error)
-	CreateFn                 func(ctx context.Context, p *entity.Project) error
-	ListFn                   func(ctx context.Context, filter *entity.ProjectFilter) ([]*entity.Project, int, error)
-	UpdateFn                 func(ctx context.Context, p *entity.Project) error
-	SoftDeleteFn             func(ctx context.Context, id string) error
-	ExistsByKeyFn            func(ctx context.Context, key string) (bool, error)
-	IncrementIssueCounterFn  func(ctx context.Context, id string) (int64, error)
-	GetDashboardFn           func(ctx context.Context, projectID string) (*entity.ProjectDashboard, error)
+	GetByIDFn               func(ctx context.Context, id string) (*entity.Project, error)
+	GetByKeyFn              func(ctx context.Context, key string) (*entity.Project, error)
+	CreateFn                func(ctx context.Context, p *entity.Project) error
+	ListFn                  func(ctx context.Context, filter *entity.ProjectFilter) ([]*entity.Project, int, error)
+	UpdateFn                func(ctx context.Context, p *entity.Project) error
+	SoftDeleteFn            func(ctx context.Context, id string) error
+	ExistsByKeyFn           func(ctx context.Context, key string) (bool, error)
+	IncrementIssueCounterFn func(ctx context.Context, id string) (int64, error)
+	AllocateIssueCountersFn func(ctx context.Context, id string, n int) (int64, error)
+	GetDashboardFn          func(ctx context.Context, projectID string) (*entity.ProjectDashboard, error)
 }
 
 var _ repository.ProjectRepository = (*ProjectRepoMock)(nil)
@@ -276,6 +285,12 @@ func (m *ProjectRepoMock) IncrementIssueCounter(ctx context.Context, id string) 
 	}
 	return 1, nil
 }
+func (m *ProjectRepoMock) AllocateIssueCounters(ctx context.Context, id string, n int) (int64, error) {
+	if m.AllocateIssueCountersFn != nil {
+		return m.AllocateIssueCountersFn(ctx, id, n)
+	}
+	return 1, nil
+}
 func (m *ProjectRepoMock) GetDashboard(ctx context.Context, projectID string) (*entity.ProjectDashboard, error) {
 	if m.GetDashboardFn != nil {
 		return m.GetDashboardFn(ctx, projectID)
@@ -286,24 +301,24 @@ func (m *ProjectRepoMock) GetDashboard(ctx context.Context, projectID string) (*
 // ─── WorkflowRepository ──────────────────────────────────────────────────────
 
 type WorkflowRepoMock struct {
-	GetWithDetailsFn       func(ctx context.Context, id string) (*entity.Workflow, error)
-	GetByIDFn              func(ctx context.Context, id string) (*entity.Workflow, error)
-	CreateFn               func(ctx context.Context, wf *entity.Workflow) error
-	ListFn                 func(ctx context.Context, filter *entity.Filter) ([]*entity.Workflow, int, error)
-	UpdateFn               func(ctx context.Context, wf *entity.Workflow) error
-	SoftDeleteFn           func(ctx context.Context, id string) error
-	SetDefaultFn           func(ctx context.Context, id string) error
-	GetDefaultFn           func(ctx context.Context) (*entity.Workflow, error)
-	CreateStatusFn         func(ctx context.Context, s *entity.WorkflowStatus) error
-	GetStatusByIDFn        func(ctx context.Context, id string) (*entity.WorkflowStatus, error)
-	ListStatusesFn         func(ctx context.Context, workflowID string) ([]*entity.WorkflowStatus, error)
-	UpdateStatusFn         func(ctx context.Context, s *entity.WorkflowStatus) error
-	DeleteStatusFn         func(ctx context.Context, id string) error
-	CreateTransitionFn     func(ctx context.Context, t *entity.WorkflowTransition) error
-	GetTransitionByIDFn    func(ctx context.Context, id string) (*entity.WorkflowTransition, error)
-	ListTransitionsFn      func(ctx context.Context, workflowID string) ([]*entity.WorkflowTransition, error)
-	DeleteTransitionFn     func(ctx context.Context, id string) error
-	IsTransitionAllowedFn  func(ctx context.Context, workflowID, fromStatusID, toStatusID string) (bool, error)
+	GetWithDetailsFn      func(ctx context.Context, id string) (*entity.Workflow, error)
+	GetByIDFn             func(ctx context.Context, id string) (*entity.Workflow, error)
+	CreateFn              func(ctx context.Context, wf *entity.Workflow) error
+	ListFn                func(ctx context.Context, filter *entity.Filter) ([]*entity.Workflow, int, error)
+	UpdateFn              func(ctx context.Context, wf *entity.Workflow) error
+	SoftDeleteFn          func(ctx context.Context, id string) error
+	SetDefaultFn          func(ctx context.Context, id string) error
+	GetDefaultFn          func(ctx context.Context) (*entity.Workflow, error)
+	CreateStatusFn        func(ctx context.Context, s *entity.WorkflowStatus) error
+	GetStatusByIDFn       func(ctx context.Context, id string) (*entity.WorkflowStatus, error)
+	ListStatusesFn        func(ctx context.Context, workflowID string) ([]*entity.WorkflowStatus, error)
+	UpdateStatusFn        func(ctx context.Context, s *entity.WorkflowStatus) error
+	DeleteStatusFn        func(ctx context.Context, id string) error
+	CreateTransitionFn    func(ctx context.Context, t *entity.WorkflowTransition) error
+	GetTransitionByIDFn   func(ctx context.Context, id string) (*entity.WorkflowTransition, error)
+	ListTransitionsFn     func(ctx context.Context, workflowID string) ([]*entity.WorkflowTransition, error)
+	DeleteTransitionFn    func(ctx context.Context, id string) error
+	IsTransitionAllowedFn func(ctx context.Context, workflowID, fromStatusID, toStatusID string) (bool, error)
 }
 
 var _ repository.WorkflowRepository = (*WorkflowRepoMock)(nil)
@@ -420,21 +435,21 @@ func (m *WorkflowRepoMock) IsTransitionAllowed(ctx context.Context, workflowID, 
 // ─── SprintRepository ────────────────────────────────────────────────────────
 
 type SprintRepoMock struct {
-	CreateFn       func(ctx context.Context, s *entity.Sprint) error
-	GetByIDFn      func(ctx context.Context, id string) (*entity.Sprint, error)
-	ListFn         func(ctx context.Context, projectID string, filter *entity.SprintFilter) ([]*entity.Sprint, int, error)
-	UpdateFn       func(ctx context.Context, s *entity.Sprint) error
-	SoftDeleteFn   func(ctx context.Context, id string) error
-	GetActiveFn    func(ctx context.Context, projectID string) (*entity.Sprint, error)
-	StartFn        func(ctx context.Context, id string, startedAt time.Time) error
-	CompleteFn     func(ctx context.Context, id string, completedAt time.Time) error
-	AddIssueFn     func(ctx context.Context, sprintID, issueID string) error
-	RemoveIssueFn  func(ctx context.Context, sprintID, issueID string) error
-	GetReportFn    func(ctx context.Context, sprintID string) (*entity.SprintReport, error)
-	GetBurndownFn  func(ctx context.Context, sprintID string) (*entity.BurndownChart, error)
-	GetBurnupFn    func(ctx context.Context, sprintID string) (*entity.BurnupChart, error)
-	GetVelocityFn  func(ctx context.Context, projectID string, limit int) (*entity.VelocityReport, error)
-	GetCFDFn       func(ctx context.Context, projectID string, from, to *string) (*entity.CFDChart, error)
+	CreateFn      func(ctx context.Context, s *entity.Sprint) error
+	GetByIDFn     func(ctx context.Context, id string) (*entity.Sprint, error)
+	ListFn        func(ctx context.Context, projectID string, filter *entity.SprintFilter) ([]*entity.Sprint, int, error)
+	UpdateFn      func(ctx context.Context, s *entity.Sprint) error
+	SoftDeleteFn  func(ctx context.Context, id string) error
+	GetActiveFn   func(ctx context.Context, projectID string) (*entity.Sprint, error)
+	StartFn       func(ctx context.Context, id string, startedAt time.Time) error
+	CompleteFn    func(ctx context.Context, id string, completedAt time.Time) error
+	AddIssueFn    func(ctx context.Context, sprintID, issueID string) error
+	RemoveIssueFn func(ctx context.Context, sprintID, issueID string) error
+	GetReportFn   func(ctx context.Context, sprintID string) (*entity.SprintReport, error)
+	GetBurndownFn func(ctx context.Context, sprintID string) (*entity.BurndownChart, error)
+	GetBurnupFn   func(ctx context.Context, sprintID string) (*entity.BurnupChart, error)
+	GetVelocityFn func(ctx context.Context, projectID string, limit int) (*entity.VelocityReport, error)
+	GetCFDFn      func(ctx context.Context, projectID string, from, to *string) (*entity.CFDChart, error)
 }
 
 var _ repository.SprintRepository = (*SprintRepoMock)(nil)
@@ -493,6 +508,9 @@ func (m *SprintRepoMock) AddIssue(ctx context.Context, sprintID, issueID string)
 	}
 	return nil
 }
+func (m *SprintRepoMock) BulkAddIssues(ctx context.Context, sprintID string, issueIDs []string) error {
+	return nil
+}
 func (m *SprintRepoMock) RemoveIssue(ctx context.Context, sprintID, issueID string) error {
 	if m.RemoveIssueFn != nil {
 		return m.RemoveIssueFn(ctx, sprintID, issueID)
@@ -536,37 +554,227 @@ type VersionRepoMock struct{}
 
 var _ repository.VersionRepository = (*VersionRepoMock)(nil)
 
-func (VersionRepoMock) Create(_ context.Context, _ *entity.Version) error                             { return nil }
-func (VersionRepoMock) GetByID(_ context.Context, _ string) (*entity.Version, error)                  { return nil, nil }
-func (VersionRepoMock) List(_ context.Context, _ string) ([]*entity.Version, error)                   { return nil, nil }
-func (VersionRepoMock) Update(_ context.Context, _ *entity.Version) error                             { return nil }
-func (VersionRepoMock) Release(_ context.Context, _ string, _ time.Time) error                        { return nil }
-func (VersionRepoMock) Archive(_ context.Context, _ string) error                                     { return nil }
-func (VersionRepoMock) Delete(_ context.Context, _ string) error                                      { return nil }
-func (VersionRepoMock) SetIssueVersions(_ context.Context, _ string, _ []string) error               { return nil }
-func (VersionRepoMock) SetIssueAffectsVersions(_ context.Context, _ string, _ []string) error        { return nil }
-func (VersionRepoMock) GetIssueVersions(_ context.Context, _ string) ([]*entity.Version, error)      { return nil, nil }
-func (VersionRepoMock) GetIssueAffectsVersions(_ context.Context, _ string) ([]*entity.Version, error) { return nil, nil }
-func (VersionRepoMock) GetProgress(_ context.Context, _ string) (int, int, error)                    { return 0, 0, nil }
+func (VersionRepoMock) Create(_ context.Context, _ *entity.Version) error              { return nil }
+func (VersionRepoMock) GetByID(_ context.Context, _ string) (*entity.Version, error)   { return nil, nil }
+func (VersionRepoMock) List(_ context.Context, _ string) ([]*entity.Version, error)    { return nil, nil }
+func (VersionRepoMock) Update(_ context.Context, _ *entity.Version) error              { return nil }
+func (VersionRepoMock) Release(_ context.Context, _ string, _ time.Time) error         { return nil }
+func (VersionRepoMock) Archive(_ context.Context, _ string) error                      { return nil }
+func (VersionRepoMock) Delete(_ context.Context, _ string) error                       { return nil }
+func (VersionRepoMock) SetIssueVersions(_ context.Context, _ string, _ []string) error { return nil }
+func (VersionRepoMock) SetIssueAffectsVersions(_ context.Context, _ string, _ []string) error {
+	return nil
+}
+func (VersionRepoMock) GetIssueVersions(_ context.Context, _ string) ([]*entity.Version, error) {
+	return nil, nil
+}
+func (VersionRepoMock) GetIssueAffectsVersions(_ context.Context, _ string) ([]*entity.Version, error) {
+	return nil, nil
+}
+func (VersionRepoMock) GetProgress(_ context.Context, _ string) (int, int, error) { return 0, 0, nil }
 
 // ─── ProjectMemberRepository ─────────────────────────────────────────────────
 
-type ProjectMemberRepoMock struct{}
-
-func (ProjectMemberRepoMock) Add(_ context.Context, _ *entity.ProjectMember) error { return nil }
-func (ProjectMemberRepoMock) GetMember(_ context.Context, _, _ string) (*entity.ProjectMember, error) {
-	return nil, nil
+type ProjectMemberRepoMock struct {
+	GetMemberFn func(ctx context.Context, projectID, userID string) (*entity.ProjectMember, error)
 }
-func (ProjectMemberRepoMock) ListByProject(_ context.Context, _ string, _ *entity.Filter) ([]*entity.ProjectMember, int, error) {
+
+func (m ProjectMemberRepoMock) Add(_ context.Context, _ *entity.ProjectMember) error { return nil }
+func (m ProjectMemberRepoMock) GetMember(ctx context.Context, projectID, userID string) (*entity.ProjectMember, error) {
+	if m.GetMemberFn != nil {
+		return m.GetMemberFn(ctx, projectID, userID)
+	}
+	return &entity.ProjectMember{Role: "admin"}, nil
+}
+func (m ProjectMemberRepoMock) ListByProject(_ context.Context, _ string, _ *entity.Filter) ([]*entity.ProjectMember, int, error) {
 	return nil, 0, nil
 }
-func (ProjectMemberRepoMock) ListByUser(_ context.Context, _ string) ([]*entity.ProjectMember, error) {
+func (m ProjectMemberRepoMock) ListByUser(_ context.Context, _ string) ([]*entity.ProjectMember, error) {
 	return nil, nil
 }
-func (ProjectMemberRepoMock) UpdateRole(_ context.Context, _, _, _ string) error { return nil }
-func (ProjectMemberRepoMock) Remove(_ context.Context, _, _ string) error        { return nil }
-func (ProjectMemberRepoMock) IsMember(_ context.Context, _, _ string) (bool, error) {
+func (m ProjectMemberRepoMock) UpdateRole(_ context.Context, _, _, _ string) error { return nil }
+func (m ProjectMemberRepoMock) Remove(_ context.Context, _, _ string) error        { return nil }
+func (m ProjectMemberRepoMock) IsMember(_ context.Context, _, _ string) (bool, error) {
 	return true, nil
+}
+
+// ─── UserRepository ──────────────────────────────────────────────────────────
+
+type UserRepoMock struct {
+	CreateFn          func(ctx context.Context, user *entity.User) error
+	GetByIDFn         func(ctx context.Context, id string) (*entity.User, error)
+	GetByEmailFn      func(ctx context.Context, email string) (*entity.User, error)
+	UpdateLastLoginFn func(ctx context.Context, userID string) error
+	UpdatePasswordFn  func(ctx context.Context, userID, hash string) error
+}
+
+var _ repository.UserRepository = (*UserRepoMock)(nil)
+
+func (m *UserRepoMock) Create(ctx context.Context, user *entity.User) error {
+	if m.CreateFn != nil {
+		return m.CreateFn(ctx, user)
+	}
+	return nil
+}
+func (m *UserRepoMock) GetByID(ctx context.Context, id string) (*entity.User, error) {
+	if m.GetByIDFn != nil {
+		return m.GetByIDFn(ctx, id)
+	}
+	return &entity.User{ID: id, IsActive: true, Role: "member"}, nil
+}
+func (m *UserRepoMock) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
+	if m.GetByEmailFn != nil {
+		return m.GetByEmailFn(ctx, email)
+	}
+	return &entity.User{ID: "user-1", Email: email, IsActive: true, Role: "member"}, nil
+}
+func (m *UserRepoMock) List(_ context.Context, _ *entity.UserFilter) ([]*entity.User, int, error) {
+	return nil, 0, nil
+}
+func (m *UserRepoMock) Update(_ context.Context, _ *entity.User) error { return nil }
+func (m *UserRepoMock) UpdatePassword(ctx context.Context, userID, hash string) error {
+	if m.UpdatePasswordFn != nil {
+		return m.UpdatePasswordFn(ctx, userID, hash)
+	}
+	return nil
+}
+func (m *UserRepoMock) UpdateLastLogin(ctx context.Context, userID string) error {
+	if m.UpdateLastLoginFn != nil {
+		return m.UpdateLastLoginFn(ctx, userID)
+	}
+	return nil
+}
+func (m *UserRepoMock) SoftDelete(_ context.Context, _ string) error            { return nil }
+func (m *UserRepoMock) ExistsByEmail(_ context.Context, _ string) (bool, error) { return false, nil }
+
+// ─── AuthRepository ───────────────────────────────────────────────────────────
+
+type AuthRepoMock struct {
+	CreateRefreshTokenFn     func(ctx context.Context, rt *entity.RefreshToken) error
+	GetRefreshTokenByHashFn  func(ctx context.Context, hash string) (*entity.RefreshToken, error)
+	RevokeRefreshTokenFn     func(ctx context.Context, id string) error
+	CreatePasswordResetFn    func(ctx context.Context, pr *entity.PasswordReset) error
+	GetPasswordResetByHashFn func(ctx context.Context, hash string) (*entity.PasswordReset, error)
+	MarkPasswordResetUsedFn  func(ctx context.Context, id string) error
+}
+
+var _ repository.AuthRepository = (*AuthRepoMock)(nil)
+
+func (m *AuthRepoMock) CreateRefreshToken(ctx context.Context, rt *entity.RefreshToken) error {
+	if m.CreateRefreshTokenFn != nil {
+		return m.CreateRefreshTokenFn(ctx, rt)
+	}
+	return nil
+}
+func (m *AuthRepoMock) GetRefreshTokenByHash(ctx context.Context, hash string) (*entity.RefreshToken, error) {
+	if m.GetRefreshTokenByHashFn != nil {
+		return m.GetRefreshTokenByHashFn(ctx, hash)
+	}
+	return &entity.RefreshToken{ID: "rt-1", UserID: "user-1"}, nil
+}
+func (m *AuthRepoMock) RevokeRefreshToken(ctx context.Context, id string) error {
+	if m.RevokeRefreshTokenFn != nil {
+		return m.RevokeRefreshTokenFn(ctx, id)
+	}
+	return nil
+}
+func (m *AuthRepoMock) RevokeAllUserTokens(_ context.Context, _ string) error { return nil }
+func (m *AuthRepoMock) DeleteExpiredTokens(_ context.Context) error           { return nil }
+func (m *AuthRepoMock) CreatePasswordReset(ctx context.Context, pr *entity.PasswordReset) error {
+	if m.CreatePasswordResetFn != nil {
+		return m.CreatePasswordResetFn(ctx, pr)
+	}
+	return nil
+}
+func (m *AuthRepoMock) GetPasswordResetByHash(ctx context.Context, hash string) (*entity.PasswordReset, error) {
+	if m.GetPasswordResetByHashFn != nil {
+		return m.GetPasswordResetByHashFn(ctx, hash)
+	}
+	return nil, nil
+}
+func (m *AuthRepoMock) MarkPasswordResetUsed(ctx context.Context, id string) error {
+	if m.MarkPasswordResetUsedFn != nil {
+		return m.MarkPasswordResetUsedFn(ctx, id)
+	}
+	return nil
+}
+func (m *AuthRepoMock) DeleteExpiredPasswordResets(_ context.Context) error { return nil }
+
+// ─── TokenMakerMock ───────────────────────────────────────────────────────────
+
+type TokenMakerMock struct {
+	GenerateFn      func(ctx context.Context, sub, sessionID, role string) (string, string, error)
+	RotateFn        func(ctx context.Context, refreshToken string) (string, string, error)
+	RevokeSessionFn func(ctx context.Context, sessionID string) error
+}
+
+var _ token.Maker = (*TokenMakerMock)(nil)
+
+func (m *TokenMakerMock) Generate(ctx context.Context, sub, sessionID, role string) (string, string, error) {
+	if m.GenerateFn != nil {
+		return m.GenerateFn(ctx, sub, sessionID, role)
+	}
+	return "access-token", "refresh-token", nil
+}
+func (m *TokenMakerMock) ValidateAccess(_ context.Context, _ string) (*token.Claims, error) {
+	return &token.Claims{}, nil
+}
+func (m *TokenMakerMock) Rotate(ctx context.Context, refreshToken string) (string, string, error) {
+	if m.RotateFn != nil {
+		return m.RotateFn(ctx, refreshToken)
+	}
+	return "new-access", "new-refresh", nil
+}
+func (m *TokenMakerMock) Revoke(_ context.Context, _ string) error { return nil }
+func (m *TokenMakerMock) StoreSession(_ context.Context, _, _ string, _ time.Duration) error {
+	return nil
+}
+func (m *TokenMakerMock) RevokeSession(ctx context.Context, sessionID string) error {
+	if m.RevokeSessionFn != nil {
+		return m.RevokeSessionFn(ctx, sessionID)
+	}
+	return nil
+}
+
+// ─── HasherMock ───────────────────────────────────────────────────────────────
+
+type HasherMock struct {
+	HashFn  func(password string) (string, error)
+	CheckFn func(plain, hashed string) bool
+}
+
+func (m *HasherMock) Hash(password string) (string, error) {
+	if m.HashFn != nil {
+		return m.HashFn(password)
+	}
+	return "hashed:" + password, nil
+}
+func (m *HasherMock) Check(plain, hashed string) bool {
+	if m.CheckFn != nil {
+		return m.CheckFn(plain, hashed)
+	}
+	return hashed == "hashed:"+plain
+}
+
+// ─── EmailSenderMock ──────────────────────────────────────────────────────────
+
+type EmailSenderMock struct {
+	SendFn    func(ctx context.Context, to []string, subject, templateName string, data any) error
+	SendRawFn func(ctx context.Context, to []string, subject, body string) error
+}
+
+func (m *EmailSenderMock) Send(ctx context.Context, to []string, subject, templateName string, data any) error {
+	if m.SendFn != nil {
+		return m.SendFn(ctx, to, subject, templateName, data)
+	}
+	return nil
+}
+
+func (m *EmailSenderMock) SendRaw(ctx context.Context, to []string, subject, body string) error {
+	if m.SendRawFn != nil {
+		return m.SendRawFn(ctx, to, subject, body)
+	}
+	return nil
 }
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────────
@@ -575,13 +783,13 @@ type DispatcherMock struct{}
 
 var _ notification.Dispatcher = (*DispatcherMock)(nil)
 
-func (DispatcherMock) IssueAssigned(_ context.Context, _ *entity.Issue, _, _ string)              {}
-func (DispatcherMock) IssueCreated(_ context.Context, _ *entity.Issue, _ string)                  {}
-func (DispatcherMock) IssueUpdated(_ context.Context, _ *entity.Issue, _ []string, _ string)      {}
-func (DispatcherMock) IssueCommented(_ context.Context, _ string, _ []string, _ string)           {}
-func (DispatcherMock) IssueMentioned(_ context.Context, _ string, _ []string, _ string)           {}
+func (DispatcherMock) IssueAssigned(_ context.Context, _ *entity.Issue, _, _ string)               {}
+func (DispatcherMock) IssueCreated(_ context.Context, _ *entity.Issue, _ string)                   {}
+func (DispatcherMock) IssueUpdated(_ context.Context, _ *entity.Issue, _ []string, _ string)       {}
+func (DispatcherMock) IssueCommented(_ context.Context, _ string, _ []string, _ string)            {}
+func (DispatcherMock) IssueMentioned(_ context.Context, _ string, _ []string, _ string)            {}
 func (DispatcherMock) IssueStatusChanged(_ context.Context, _ *entity.Issue, _ []string, _ string) {}
-func (DispatcherMock) PageCommented(_ context.Context, _ string, _ []string, _ string)            {}
-func (DispatcherMock) PageMentioned(_ context.Context, _ string, _ []string, _ string)            {}
-func (DispatcherMock) SprintStarted(_ context.Context, _, _, _ string)                            {}
-func (DispatcherMock) SprintCompleted(_ context.Context, _, _, _ string)                          {}
+func (DispatcherMock) PageCommented(_ context.Context, _ string, _ []string, _ string)             {}
+func (DispatcherMock) PageMentioned(_ context.Context, _ string, _ []string, _ string)             {}
+func (DispatcherMock) SprintStarted(_ context.Context, _, _, _ string)                             {}
+func (DispatcherMock) SprintCompleted(_ context.Context, _, _, _ string)                           {}

@@ -35,7 +35,8 @@ func CreateSprint(h *handlers.Handler) gin.HandlerFunc {
 			StartDate: req.StartDate,
 			EndDate:   req.EndDate,
 		}
-		sprint, err := h.Sprint.Create(c.Request.Context(), projectID, actorID, s)
+		isAdmin := c.GetString(middleware.CtxRole) == "admin"
+		sprint, err := h.Sprint.Create(c.Request.Context(), projectID, actorID, isAdmin, s)
 		if err != nil {
 			hs.Error(c, err)
 			return

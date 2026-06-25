@@ -29,6 +29,23 @@ type BulkResult struct {
 	Total   int      `json:"total"`
 }
 
+// BulkCreateIssueReq — bir so'rovda ko'p issue yaratish (max 100).
+type BulkCreateIssueReq struct {
+	Issues []*CreateIssueReq `json:"issues" validate:"required,min=1,max=100,dive"`
+}
+
+// BulkCreateResult — bulk yaratish natijasi.
+type BulkCreateResult struct {
+	Created []*Issue          `json:"created"`
+	Failed  []BulkCreateError `json:"failed,omitempty"`
+	Total   int               `json:"total"`
+}
+
+type BulkCreateError struct {
+	Index int    `json:"index"`
+	Error string `json:"error"`
+}
+
 // CloneIssueReq — issue nusxalash.
 type CloneIssueReq struct {
 	Title          *string `json:"title"`           // nil => original + " (copy)"

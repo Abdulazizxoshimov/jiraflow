@@ -17,3 +17,18 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Test artifacts
+*.py
+*.log
+stress_test_report.md
+.playwright-mcp/
+failures.log
+
+# Claude Code
+.claude/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/package-lock.json

@@ -1,0 +1,72 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/deployments/Dockerfile
+          push: true
+          tags: ${{ secrets.REGISTRY_HOST }}/jiraflow/backend:${{ github.sha }},${{ secrets.REGISTRY_HOST }}/jiraflow/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/jiraflow
+
+            # Pull latest images
+            docker compose pull app
+
+            # Zero-downtime rolling restart
+            docker compose up -d --no-deps --remove-orphans app
+
+            # Copy new frontend dist to nginx volume
+            docker compose cp /tmp/frontend-dist/. nginx:/usr/share/nginx/html/ || true
+
+            # Health check
+            sleep 5
+            curl -sf http://localhost:8080/health || (echo "Health check failed" && exit 1)
+
+      - name: Upload frontend dist
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "frontend/dist/*"
+          target: "/tmp/frontend-dist"
+          strip_components: 2

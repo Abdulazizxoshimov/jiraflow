@@ -7,11 +7,11 @@ import (
 )
 
 type UseCase interface {
-	Create(ctx context.Context, spaceID, authorID string, req *entity.CreatePageReq) (*entity.Page, error)
+	Create(ctx context.Context, spaceID, authorID string, isAdmin bool, req *entity.CreatePageReq) (*entity.Page, error)
 	GetByID(ctx context.Context, id string) (*entity.Page, error)
 	List(ctx context.Context, filter *entity.PageFilter) ([]*entity.Page, int, error)
 	Update(ctx context.Context, id, editorID string, req *entity.UpdatePageReq) (*entity.Page, error)
-	Delete(ctx context.Context, id, actorID string) error
+	Delete(ctx context.Context, id, actorID string, isAdmin bool) error
 	GetTree(ctx context.Context, spaceID string) ([]*entity.PageTree, error)
 	Move(ctx context.Context, id string, position int, parentID *string, actorID string) error
 

@@ -5,8 +5,10 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"net"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/config"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
@@ -37,6 +39,26 @@ type emailSender struct {
 	log logger.Logger
 }
 
+// Ping dials the SMTP server to verify connectivity. Used at startup.
+func Ping(cfg config.EmailConfig) error {
+	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	if err != nil {
+		return fmt.Errorf("smtp ping %s: %w", addr, err)
+	}
+	conn.Close()
+	return nil
+}
+
+type nopSender struct{}
+
+func (nopSender) Send(_ context.Context, _ []string, _, _ string, _ any) error { return nil }
+func (nopSender) SendRaw(_ context.Context, _ []string, _, _ string) error      { return nil }
+
+// NewNopSender returns a Sender that silently discards all emails.
+// Used when EMAIL_ENABLED=false.
+func NewNopSender() Sender { return nopSender{} }
+
 func New(cfg config.EmailConfig, log logger.Logger) (Sender, error) {
 	if sharedTmpl == nil {
 		tmpl, err := loadTemplates()
@@ -57,13 +79,23 @@ func (s *emailSender) Send(ctx context.Context, to []string, subject, templateNa
 }
 
 func (s *emailSender) SendRaw(ctx context.Context, to []string, subject, body string) error {
-	auth := smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, s.cfg.Host)
+	authUser := s.cfg.Username
+	if authUser == "" || !strings.Contains(authUser, "@") {
+		authUser = s.cfg.From
+	}
+	auth := smtp.PlainAuth("", authUser, s.cfg.Password, s.cfg.Host)
 	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
+
+	displayName := s.cfg.Username
+	if strings.Contains(displayName, "@") || displayName == "" {
+		displayName = "Jiraflow"
+	}
+	fromHeader := fmt.Sprintf("%s <%s>", displayName, s.cfg.From)
 
 	msg := []byte(
 		"MIME-Version: 1.0\r\n" +
 			"Content-Type: text/html; charset=UTF-8\r\n" +
-			"From: " + s.cfg.From + "\r\n" +
+			"From: " + fromHeader + "\r\n" +
 			"To: " + strings.Join(to, ", ") + "\r\n" +
 			"Subject: " + subject + "\r\n\r\n" +
 			body,

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
+	emailpkg "github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
 	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
 	apperr "github.com/jira-backend/jiraflow-backend/internal/pkg/errors"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/hasher"
@@ -21,11 +22,13 @@ import (
 const inviteTTL = 7 * 24 * time.Hour
 
 type useCase struct {
-	inviteRepo repository.InviteRepository
-	userRepo   repository.UserRepository
-	tokens     token.Maker
-	hasher     hasher.Hasher
-	log        logger.Logger
+	inviteRepo  repository.InviteRepository
+	userRepo    repository.UserRepository
+	tokens      token.Maker
+	hasher      hasher.Hasher
+	email       emailpkg.Sender
+	frontendURL string
+	log         logger.Logger
 }
 
 func New(
@@ -33,14 +36,18 @@ func New(
 	userRepo repository.UserRepository,
 	tokens token.Maker,
 	h hasher.Hasher,
+	email emailpkg.Sender,
+	frontendURL string,
 	log logger.Logger,
 ) UseCase {
 	return &useCase{
-		inviteRepo: inviteRepo,
-		userRepo:   userRepo,
-		tokens:     tokens,
-		hasher:     h,
-		log:        log,
+		inviteRepo:  inviteRepo,
+		userRepo:    userRepo,
+		tokens:      tokens,
+		hasher:      h,
+		email:       email,
+		frontendURL: frontendURL,
+		log:         log,
 	}
 }
 
@@ -73,7 +80,18 @@ func (uc *useCase) Create(ctx context.Context, req *entity.CreateInviteReq, invi
 	}
 	uc.log.Info(ctx, "invite created", logger.String("id", invite.ID), logger.String("invited_by", invitedBy))
 
-	_ = rawToken
+	inviteURL := uc.frontendURL + "/#/accept-invite?token=" + rawToken
+	invite.InviteURL = inviteURL
+
+	if uc.email != nil {
+		go func() {
+			_ = uc.email.Send(ctx, []string{req.Email}, "You've been invited to Forge", "invite", map[string]any{
+				"InviteURL": inviteURL,
+				"Role":      req.Role,
+			})
+		}()
+	}
+
 	return invite, nil
 }
 

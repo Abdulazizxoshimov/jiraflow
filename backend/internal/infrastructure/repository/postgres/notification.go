@@ -146,20 +146,21 @@ func (r *notificationRepo) GetPreference(ctx context.Context, userID string) (*e
 	pref := &entity.NotificationPreference{}
 	err := r.db.QueryRow(ctx, `
 		SELECT user_id, email_assigned, email_mentioned, email_commented,
-		       email_status, email_watcher, daily_digest, updated_at
+		       email_status, email_watcher, daily_digest, telegram_enabled, updated_at
 		FROM notification_preferences WHERE user_id=$1
 	`, userID).Scan(
 		&pref.UserID, &pref.EmailAssigned, &pref.EmailMentioned, &pref.EmailCommented,
-		&pref.EmailStatus, &pref.EmailWatcher, &pref.DailyDigest, &pref.UpdatedAt,
+		&pref.EmailStatus, &pref.EmailWatcher, &pref.DailyDigest, &pref.TelegramEnabled, &pref.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return &entity.NotificationPreference{
-			UserID:         userID,
-			EmailAssigned:  true,
-			EmailMentioned: true,
-			EmailCommented: true,
-			EmailStatus:    true,
-			EmailWatcher:   true,
+			UserID:          userID,
+			EmailAssigned:   true,
+			EmailMentioned:  true,
+			EmailCommented:  true,
+			EmailStatus:     true,
+			EmailWatcher:    true,
+			TelegramEnabled: true,
 		}, nil
 	}
 	return pref, err
@@ -167,8 +168,8 @@ func (r *notificationRepo) GetPreference(ctx context.Context, userID string) (*e
 
 func (r *notificationRepo) UpsertPreference(ctx context.Context, pref *entity.NotificationPreference) error {
 	_, err := r.db.Exec(ctx, `
-		INSERT INTO notification_preferences(user_id, email_assigned, email_mentioned, email_commented, email_status, email_watcher, daily_digest, updated_at)
-		VALUES($1,$2,$3,$4,$5,$6,$7,NOW())
+		INSERT INTO notification_preferences(user_id, email_assigned, email_mentioned, email_commented, email_status, email_watcher, daily_digest, telegram_enabled, updated_at)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW())
 		ON CONFLICT(user_id) DO UPDATE SET
 			email_assigned=EXCLUDED.email_assigned,
 			email_mentioned=EXCLUDED.email_mentioned,
@@ -176,9 +177,10 @@ func (r *notificationRepo) UpsertPreference(ctx context.Context, pref *entity.No
 			email_status=EXCLUDED.email_status,
 			email_watcher=EXCLUDED.email_watcher,
 			daily_digest=EXCLUDED.daily_digest,
+			telegram_enabled=EXCLUDED.telegram_enabled,
 			updated_at=NOW()
 	`, pref.UserID, pref.EmailAssigned, pref.EmailMentioned, pref.EmailCommented,
-		pref.EmailStatus, pref.EmailWatcher, pref.DailyDigest,
+		pref.EmailStatus, pref.EmailWatcher, pref.DailyDigest, pref.TelegramEnabled,
 	)
 	return err
 }

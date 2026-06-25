@@ -28,13 +28,13 @@ func NewPageRepo(p *pg.Postgres) repository.PageRepository {
 	return &pageRepo{db: p.DB, builder: p.Builder}
 }
 
-const pageCols = "id, space_id, parent_id, title, content, content_text, author_id, last_editor_id, current_version, status, position, created_at, updated_at, deleted_at"
+const pageCols = "id, space_id, parent_id, title, icon, content, content_text, author_id, last_editor_id, current_version, status, position, created_at, updated_at, deleted_at"
 
 func scanPage(row pgx.Row) (*entity.Page, error) {
 	p := &entity.Page{}
 	var contentJSON []byte
 	err := row.Scan(
-		&p.ID, &p.SpaceID, &p.ParentID, &p.Title,
+		&p.ID, &p.SpaceID, &p.ParentID, &p.Title, &p.Icon,
 		&contentJSON, &p.ContentText, &p.AuthorID, &p.LastEditorID,
 		&p.CurrentVersion, &p.Status, &p.Position,
 		&p.CreatedAt, &p.UpdatedAt, &p.DeletedAt,
@@ -55,9 +55,9 @@ func (r *pageRepo) Create(ctx context.Context, p *entity.Page) error {
 	}
 	sql, args, err := r.builder.
 		Insert("pages").
-		Columns("id", "space_id", "parent_id", "title", "content", "content_text",
+		Columns("id", "space_id", "parent_id", "title", "icon", "content", "content_text",
 			"author_id", "last_editor_id", "current_version", "status", "position", "created_at", "updated_at").
-		Values(p.ID, p.SpaceID, p.ParentID, p.Title, contentJSON, p.ContentText,
+		Values(p.ID, p.SpaceID, p.ParentID, p.Title, p.Icon, contentJSON, p.ContentText,
 			p.AuthorID, p.LastEditorID, p.CurrentVersion, p.Status, p.Position, p.CreatedAt, p.UpdatedAt).
 		ToSql()
 	if err != nil {
@@ -141,7 +141,7 @@ func (r *pageRepo) Update(ctx context.Context, p *entity.Page) error {
 	}
 	sql, args, err := r.builder.
 		Update("pages").
-		Set("title", p.Title).Set("content", contentJSON).
+		Set("title", p.Title).Set("icon", p.Icon).Set("content", contentJSON).
 		Set("content_text", p.ContentText).Set("status", p.Status).
 		Set("last_editor_id", p.LastEditorID).Set("current_version", p.CurrentVersion).
 		Set("updated_at", sq.Expr("NOW()")).
@@ -166,7 +166,7 @@ func (r *pageRepo) SoftDelete(ctx context.Context, id string) error {
 
 func (r *pageRepo) GetTree(ctx context.Context, spaceID string) ([]*entity.PageTree, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, parent_id, title, position, status
+		SELECT id, parent_id, title, icon, position, status
 		FROM pages
 		WHERE space_id=$1 AND deleted_at IS NULL
 		ORDER BY position ASC, created_at ASC
@@ -181,7 +181,7 @@ func (r *pageRepo) GetTree(ctx context.Context, spaceID string) ([]*entity.PageT
 
 	for rows.Next() {
 		n := &entity.PageTree{}
-		if err := rows.Scan(&n.ID, &n.ParentID, &n.Title, &n.Position, &n.Status); err != nil {
+		if err := rows.Scan(&n.ID, &n.ParentID, &n.Title, &n.Icon, &n.Position, &n.Status); err != nil {
 			return nil, err
 		}
 		all[n.ID] = n

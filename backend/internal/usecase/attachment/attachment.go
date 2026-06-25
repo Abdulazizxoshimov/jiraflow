@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +15,10 @@ import (
 	apperr "github.com/jira-backend/jiraflow-backend/internal/pkg/errors"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 )
+
+var allowedParentTypes = map[string]struct{}{
+	"issues": {}, "pages": {}, "comments": {}, "projects": {}, "users": {},
+}
 
 const presignTTL = 24 * time.Hour
 
@@ -28,8 +33,15 @@ func New(attachRepo repository.AttachmentRepository, minioClient minio.Client, l
 }
 
 func (uc *useCase) Upload(ctx context.Context, parentType, parentID, uploaderID string, fileName string, size int64, mimeType string, r io.Reader) (*entity.Attachment, error) {
+	if _, ok := allowedParentTypes[parentType]; !ok {
+		return nil, apperr.BadRequest("invalid parent type")
+	}
 	id := uuid.NewString()
-	objectName := fmt.Sprintf("%s/%s/%s/%s", parentType, parentID, id, fileName)
+	safeFileName := filepath.Base(fileName)
+	if safeFileName == "." || safeFileName == "/" {
+		return nil, apperr.BadRequest("invalid file name")
+	}
+	objectName := fmt.Sprintf("%s/%s/%s/%s", parentType, parentID, id, safeFileName)
 
 	storagePath, err := uc.minioClient.Upload(ctx, objectName, mimeType, r, size)
 	if err != nil {
@@ -41,7 +53,7 @@ func (uc *useCase) Upload(ctx context.Context, parentType, parentID, uploaderID 
 		ID:          id,
 		ParentType:  parentType,
 		ParentID:    parentID,
-		FileName:    fileName,
+		FileName:    safeFileName,
 		FileSize:    size,
 		MimeType:    mimeType,
 		StoragePath: storagePath,

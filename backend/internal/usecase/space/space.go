@@ -2,6 +2,8 @@ package space
 
 import (
 	"context"
+	"crypto/rand"
+	"math/big"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +13,51 @@ import (
 	apperr "github.com/jira-backend/jiraflow-backend/internal/pkg/errors"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 )
+
+// DB constraint: key ~ '^[A-Z][A-Z0-9]{1,9}$'
+// First char must be a letter; remaining chars can be letters or digits.
+const keyLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const keyAlphaNum = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func randChar(alphabet string) (byte, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(alphabet))))
+	if err != nil {
+		return 0, err
+	}
+	return alphabet[n.Int64()], nil
+}
+
+// generateUniqueKey generates a random 8-char key that satisfies the DB
+// constraint (first char A-Z, rest A-Z0-9) and retries on collision.
+func (uc *useCase) generateUniqueKey(ctx context.Context) (string, error) {
+	const length = 8
+	const maxAttempts = 10
+
+	for range maxAttempts {
+		b := make([]byte, length)
+		first, err := randChar(keyLetters)
+		if err != nil {
+			return "", err
+		}
+		b[0] = first
+		for i := 1; i < length; i++ {
+			c, err := randChar(keyAlphaNum)
+			if err != nil {
+				return "", err
+			}
+			b[i] = c
+		}
+		key := string(b)
+		exists, err := uc.spaceRepo.ExistsByKey(ctx, key)
+		if err != nil {
+			return "", err
+		}
+		if !exists {
+			return key, nil
+		}
+	}
+	return "", apperr.Conflict("could not generate a unique space key, please try again")
+}
 
 type useCase struct {
 	spaceRepo repository.SpaceRepository
@@ -22,13 +69,11 @@ func New(spaceRepo repository.SpaceRepository, log logger.Logger) UseCase {
 }
 
 func (uc *useCase) Create(ctx context.Context, s *entity.Space, leadID string) (*entity.Space, error) {
-	exists, err := uc.spaceRepo.ExistsByKey(ctx, s.Key)
+	key, err := uc.generateUniqueKey(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if exists {
-		return nil, apperr.Conflict("space key already exists")
-	}
+	s.Key = key
 
 	now := time.Now().UTC()
 	s.ID = uuid.NewString()

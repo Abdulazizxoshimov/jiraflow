@@ -1,12 +1,53 @@
 package v1
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 
-	hs "github.com/jira-backend/jiraflow-backend/api/http_status"
 	"github.com/jira-backend/jiraflow-backend/api/handlers"
+	hs "github.com/jira-backend/jiraflow-backend/api/http_status"
 	"github.com/jira-backend/jiraflow-backend/api/middleware"
 )
+
+// allowedProxyPrefixes whitelists storage paths accessible via the public proxy.
+// Extends only for directories that must be reachable without auth (e.g. avatars in <img> tags).
+var allowedProxyPrefixes = []string{
+	"avatars/",
+}
+
+// ServeFileProxy godoc
+// @Summary      Proxy-redirect to object storage (public, avatars only)
+// @Tags         files
+// @Param        path  query  string  true  "Storage object path"
+// @Success      302
+// @Router       /api/v1/files/proxy [get]
+func ServeFileProxy(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		storagePath := c.Query("path")
+		if storagePath == "" {
+			hs.BadRequest(c, "path is required")
+			return
+		}
+		allowed := false
+		for _, prefix := range allowedProxyPrefixes {
+			if strings.HasPrefix(storagePath, prefix) {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			hs.Forbidden(c, "path not allowed via public proxy")
+			return
+		}
+		url, err := h.File.GetPresignedURL(c.Request.Context(), storagePath)
+		if err != nil {
+			hs.Error(c, err)
+			return
+		}
+		c.Redirect(302, url)
+	}
+}
 
 // UploadFile godoc
 // @Summary      Upload a standalone file to object storage

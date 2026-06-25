@@ -1,0 +1,19 @@
+{
+  "name": "jiraflow-collab",
+  "version": "1.0.0",
+  "description": "Hocuspocus Y.js collaboration server for JiraFlow",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.13.5",
+    "@hocuspocus/extension-database": "^2.13.5",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

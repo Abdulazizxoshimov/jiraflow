@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -34,6 +35,7 @@ type LokiConfig struct {
 
 type TelegramConfig struct {
 	BotToken      string `json:"bot_token"`
+	BotUsername   string `json:"bot_username"`
 	WebhookURL    string `json:"webhook_url"`
 	WebhookSecret string `json:"webhook_secret"`
 }
@@ -51,10 +53,11 @@ type OAuthConfig struct {
 }
 
 type AppConfig struct {
-	Port            string `json:"port"`
-	Env             string `json:"env"`
-	LogLevel        string `json:"log_level"`
-	FrontendBaseURL string `json:"frontend_base_url"`
+	Port                  string `json:"port"`
+	Env                   string `json:"env"`
+	LogLevel              string `json:"log_level"`
+	FrontendBaseURL       string `json:"frontend_base_url"`
+	AllowOpenRegistration bool   `json:"allow_open_registration"`
 }
 
 type PostgresConfig struct {
@@ -75,12 +78,31 @@ func (p PostgresConfig) DSN() string {
 	if url := os.Getenv("DATABASE_URL"); url != "" {
 		return url
 	}
+	sslMode := "disable"
+	if os.Getenv("APP_ENV") == "production" {
+		sslMode = "require"
+	}
 	return "host=" + p.Host +
 		" port=" + p.Port +
 		" dbname=" + p.Database +
 		" user=" + p.Username +
 		" password=" + p.Password +
-		" sslmode=disable"
+		" sslmode=" + sslMode
+}
+
+// Validate checks that required config values are present and safe.
+// Call this at startup before wiring any infrastructure.
+func (c *Config) Validate() error {
+	if c.JWT.Secret == "" {
+		return fmt.Errorf("JWT_SECRET must be set")
+	}
+	if len(c.JWT.Secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters long")
+	}
+	if c.Postgres.Password == "" && os.Getenv("DATABASE_URL") == "" {
+		return fmt.Errorf("DB_PASSWORD must be set (or use DATABASE_URL)")
+	}
+	return nil
 }
 
 type RedisConfig struct {
@@ -114,6 +136,7 @@ type JWTConfig struct {
 }
 
 type EmailConfig struct {
+	Enabled  bool   `json:"enabled"`
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	From     string `json:"from"`
@@ -126,17 +149,18 @@ type EmailConfig struct {
 func Load() *Config {
 	return &Config{
 		App: AppConfig{
-			Port:            getEnv("APP_PORT", "8080"),
-			Env:             getEnv("APP_ENV", "development"),
-			LogLevel:        getEnv("LOG_LEVEL", "info"),
-			FrontendBaseURL: getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),
+			Port:                  getEnv("APP_PORT", "8080"),
+			Env:                   getEnv("APP_ENV", "development"),
+			LogLevel:              getEnv("LOG_LEVEL", "info"),
+			FrontendBaseURL:       getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),
+			AllowOpenRegistration: getEnvBool("ALLOW_OPEN_REGISTRATION", false),
 		},
 		Postgres: PostgresConfig{
 			Host:              getEnv("DB_HOST", "localhost"),
 			Port:              getEnv("DB_PORT", "5432"),
 			Database:          getEnv("DB_NAME", "jiraflow"),
 			Username:          getEnv("DB_USER", "postgres"),
-			Password:          getEnv("DB_PASSWORD", "4444"),
+			Password:          getEnv("DB_PASSWORD", ""),
 			MaxConns:          int32(getEnvInt("DB_MAX_CONNS", 50)),
 			MinConns:          int32(getEnvInt("DB_MIN_CONNS", 5)),
 			MaxConnIdleTime:   getEnvDuration("DB_MAX_CONN_IDLE_TIME", 5*time.Minute),
@@ -165,6 +189,7 @@ func Load() *Config {
 			RefreshTTL: getEnvDuration("JWT_REFRESH_TTL", 720*time.Hour),
 		},
 		Email: EmailConfig{
+			Enabled:  getEnvBool("EMAIL_ENABLED", true),
 			Host:     getEnv("SMTP_HOST", "smtp.gmail.com"),
 			Port:     getEnvInt("SMTP_PORT", 587),
 			From:     getEnv("SMTP_FROM", ""),
@@ -178,6 +203,7 @@ func Load() *Config {
 		},
 		Telegram: TelegramConfig{
 			BotToken:      getEnv("TELEGRAM_BOT_TOKEN", ""),
+			BotUsername:   getEnv("TELEGRAM_BOT_USERNAME", ""),
 			WebhookURL:    getEnv("TELEGRAM_WEBHOOK_URL", ""),
 			WebhookSecret: getEnv("TELEGRAM_WEBHOOK_SECRET", ""),
 		},

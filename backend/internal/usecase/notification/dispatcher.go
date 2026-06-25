@@ -31,12 +31,12 @@ type Dispatcher interface {
 }
 
 type dispatcher struct {
-	uc          UseCase
-	userRepo    repository.UserRepository
-	hub         *websocket.Hub
-	email       email.Sender
-	automation  AutomationTrigger
-	telegramUC  tguc.UseCase
+	uc         UseCase
+	userRepo   repository.UserRepository
+	hub        *websocket.Hub
+	email      email.Sender
+	automation AutomationTrigger
+	telegramUC tguc.UseCase
 }
 
 func NewDispatcher(uc UseCase, userRepo repository.UserRepository, hub *websocket.Hub, emailSender email.Sender) Dispatcher {
@@ -62,24 +62,26 @@ func (d *dispatcher) notify(ctx context.Context, n *entity.Notification, emailSu
 
 	// WebSocket — foydalanuvchi onlayn bo'lsa real-time yuborish
 	if d.hub != nil {
-		d.hub.Send(n.UserID, websocket.NewNotificationMsg(n))
+		d.hub.Send(n.UserID, websocket.NewNotificationMsg(n.UserID, n))
 	}
 
-	// Email — preference'ga qarab
+	// Email — preference'ga qarab (background ctx: HTTP request cancel qilsa ham yuboriladi)
 	if shouldEmail && d.email != nil && n.UserID != "" {
+		userID := n.UserID
 		go func() {
-			pref, err := d.uc.GetPreference(ctx, n.UserID)
+			bg := context.Background()
+			pref, err := d.uc.GetPreference(bg, userID)
 			if err != nil {
 				return
 			}
 			if !d.prefAllows(pref, n.Type) {
 				return
 			}
-			user, err := d.userRepo.GetByID(ctx, n.UserID)
+			user, err := d.userRepo.GetByID(bg, userID)
 			if err != nil || user.Email == "" {
 				return
 			}
-			_ = d.email.Send(ctx, []string{user.Email}, emailSubject, "notification", map[string]any{
+			_ = d.email.Send(bg, []string{user.Email}, emailSubject, "notification", map[string]any{
 				"Title":     emailSubject,
 				"Body":      emailTemplate,
 				"ActionURL": "",
@@ -87,10 +89,16 @@ func (d *dispatcher) notify(ctx context.Context, n *entity.Notification, emailSu
 		}()
 	}
 
-	// Telegram — ulangan bo'lsa xabar yuborish
+	// Telegram — ulangan bo'lsa va telegram_enabled=true bo'lsa xabar yuborish
 	if d.telegramUC != nil && n.UserID != "" && emailTemplate != "" {
+		userID := n.UserID
 		go func() {
-			_ = d.telegramUC.SendNotification(ctx, n.UserID, emailTemplate)
+			bg := context.Background()
+			pref, err := d.uc.GetPreference(bg, userID)
+			if err != nil || !pref.TelegramEnabled {
+				return
+			}
+			_ = d.telegramUC.SendNotification(bg, userID, emailTemplate)
 		}()
 	}
 }

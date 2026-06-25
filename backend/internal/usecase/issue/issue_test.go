@@ -45,7 +45,7 @@ func TestCreate_Success(t *testing.T) {
 	result, err := uc.Create(ctx, "proj-1", &entity.CreateIssueReq{
 		Title: "Fix login bug",
 		Type:  "bug",
-	}, "user-1")
+	}, "user-1", false)
 
 	require.NoError(t, err)
 	assert.Equal(t, "Fix login bug", result.Title)
@@ -73,7 +73,7 @@ func TestCreate_DefaultPriority(t *testing.T) {
 	}
 
 	uc := newUC(&testutil.IssueRepoMock{}, projRepo, wfRepo)
-	result, err := uc.Create(ctx, "proj-1", &entity.CreateIssueReq{Title: "Task"}, "user-1")
+	result, err := uc.Create(ctx, "proj-1", &entity.CreateIssueReq{Title: "Task"}, "user-1", false)
 
 	require.NoError(t, err)
 	assert.Equal(t, "medium", result.Priority)
@@ -89,7 +89,7 @@ func TestCreate_ProjectNotFound(t *testing.T) {
 	}
 
 	uc := newUC(&testutil.IssueRepoMock{}, projRepo, &testutil.WorkflowRepoMock{})
-	_, err := uc.Create(ctx, "proj-x", &entity.CreateIssueReq{Title: "Task"}, "user-1")
+	_, err := uc.Create(ctx, "proj-x", &entity.CreateIssueReq{Title: "Task"}, "user-1", false)
 
 	require.Error(t, err)
 	var appErr *apperr.AppError
@@ -112,7 +112,7 @@ func TestCreate_WorkflowError(t *testing.T) {
 	}
 
 	uc := newUC(&testutil.IssueRepoMock{}, projRepo, wfRepo)
-	_, err := uc.Create(ctx, "proj-1", &entity.CreateIssueReq{Title: "Task"}, "user-1")
+	_, err := uc.Create(ctx, "proj-1", &entity.CreateIssueReq{Title: "Task"}, "user-1", false)
 
 	require.Error(t, err)
 }
@@ -231,4 +231,159 @@ func TestBulkUpdate_RepoError(t *testing.T) {
 	_, err := uc.BulkUpdate(ctx, &entity.BulkUpdateIssueReq{IssueIDs: []string{"id-1"}}, "actor-1")
 
 	require.Error(t, err)
+}
+
+// ─── Transition ──────────────────────────────────────────────────────────────
+
+func TestTransition_Success(t *testing.T) {
+	ctx := context.Background()
+
+	issueRepo := &testutil.IssueRepoMock{
+		GetByIDFn: func(_ context.Context, id string) (*entity.Issue, error) {
+			return &entity.Issue{ID: id, ProjectID: "proj-1", StatusID: "status-todo"}, nil
+		},
+	}
+	projRepo := &testutil.ProjectRepoMock{
+		GetByIDFn: func(_ context.Context, id string) (*entity.Project, error) {
+			return &entity.Project{ID: id, WorkflowID: "wf-1"}, nil
+		},
+	}
+	wfRepo := &testutil.WorkflowRepoMock{
+		IsTransitionAllowedFn: func(_ context.Context, _, _, _ string) (bool, error) {
+			return true, nil
+		},
+		GetStatusByIDFn: func(_ context.Context, id string) (*entity.WorkflowStatus, error) {
+			return &entity.WorkflowStatus{ID: id, Category: "in_progress"}, nil
+		},
+	}
+
+	uc := newUC(issueRepo, projRepo, wfRepo)
+	result, err := uc.Transition(ctx, "issue-1", "status-inprogress", "actor-1")
+
+	require.NoError(t, err)
+	assert.Equal(t, "status-inprogress", result.StatusID)
+}
+
+func TestTransition_NotAllowed(t *testing.T) {
+	ctx := context.Background()
+
+	issueRepo := &testutil.IssueRepoMock{
+		GetByIDFn: func(_ context.Context, id string) (*entity.Issue, error) {
+			return &entity.Issue{ID: id, ProjectID: "proj-1", StatusID: "status-done"}, nil
+		},
+	}
+	projRepo := &testutil.ProjectRepoMock{
+		GetByIDFn: func(_ context.Context, id string) (*entity.Project, error) {
+			return &entity.Project{ID: id, WorkflowID: "wf-1"}, nil
+		},
+	}
+	wfRepo := &testutil.WorkflowRepoMock{
+		IsTransitionAllowedFn: func(_ context.Context, _, _, _ string) (bool, error) {
+			return false, nil // Done → ToDo blocked
+		},
+	}
+
+	uc := newUC(issueRepo, projRepo, wfRepo)
+	_, err := uc.Transition(ctx, "issue-1", "status-todo", "actor-1")
+
+	require.Error(t, err)
+	var appErr *apperr.AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, apperr.CodeBadRequest, appErr.Code)
+}
+
+func TestTransition_IssueNotFound(t *testing.T) {
+	ctx := context.Background()
+
+	issueRepo := &testutil.IssueRepoMock{
+		GetByIDFn: func(_ context.Context, _ string) (*entity.Issue, error) {
+			return nil, apperr.NotFound("issue not found")
+		},
+	}
+
+	uc := newUC(issueRepo, &testutil.ProjectRepoMock{}, &testutil.WorkflowRepoMock{})
+	_, err := uc.Transition(ctx, "bad-id", "status-1", "actor-1")
+
+	require.Error(t, err)
+	var appErr *apperr.AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, apperr.CodeNotFound, appErr.Code)
+}
+
+func TestTransition_DoneCategory_SetsResolution(t *testing.T) {
+	ctx := context.Background()
+
+	var resolutionSet *string
+	issueRepo := &testutil.IssueRepoMock{
+		GetByIDFn: func(_ context.Context, id string) (*entity.Issue, error) {
+			return &entity.Issue{ID: id, ProjectID: "proj-1", StatusID: "status-inprogress", Resolution: nil}, nil
+		},
+		UpdateResolutionFn: func(_ context.Context, _ string, r *string) error {
+			resolutionSet = r
+			return nil
+		},
+	}
+	projRepo := &testutil.ProjectRepoMock{
+		GetByIDFn: func(_ context.Context, id string) (*entity.Project, error) {
+			return &entity.Project{ID: id, WorkflowID: "wf-1"}, nil
+		},
+	}
+	wfRepo := &testutil.WorkflowRepoMock{
+		IsTransitionAllowedFn: func(_ context.Context, _, _, _ string) (bool, error) {
+			return true, nil
+		},
+		GetStatusByIDFn: func(_ context.Context, id string) (*entity.WorkflowStatus, error) {
+			return &entity.WorkflowStatus{ID: id, Category: "done"}, nil
+		},
+	}
+
+	uc := newUC(issueRepo, projRepo, wfRepo)
+	result, err := uc.Transition(ctx, "issue-1", "status-done", "actor-1")
+
+	require.NoError(t, err)
+	assert.Equal(t, "status-done", result.StatusID)
+	require.NotNil(t, resolutionSet)
+	assert.Equal(t, "fixed", *resolutionSet)
+}
+
+// ─── ParentID empty string coercion ──────────────────────────────────────────
+
+func TestCreate_EmptyParentID_CoercedToNil(t *testing.T) {
+	ctx := context.Background()
+
+	var createdIssue *entity.Issue
+	issueRepo := &testutil.IssueRepoMock{
+		CreateFn: func(_ context.Context, i *entity.Issue) error {
+			createdIssue = i
+			return nil
+		},
+	}
+	projRepo := &testutil.ProjectRepoMock{
+		GetByIDFn: func(_ context.Context, id string) (*entity.Project, error) {
+			return &entity.Project{ID: id, WorkflowID: "wf-1"}, nil
+		},
+		IncrementIssueCounterFn: func(_ context.Context, _ string) (int64, error) {
+			return 1, nil
+		},
+	}
+	wfRepo := &testutil.WorkflowRepoMock{
+		GetWithDetailsFn: func(_ context.Context, _ string) (*entity.Workflow, error) {
+			return &entity.Workflow{
+				ID:       "wf-1",
+				Statuses: []entity.WorkflowStatus{{ID: "status-1", IsInitial: true}},
+			}, nil
+		},
+	}
+
+	emptyParent := ""
+	uc := newUC(issueRepo, projRepo, wfRepo)
+	_, err := uc.Create(ctx, "proj-1", &entity.CreateIssueReq{
+		Title:    "Task with empty parent",
+		Type:     "task",
+		ParentID: &emptyParent,
+	}, "user-1", false)
+
+	require.NoError(t, err)
+	require.NotNil(t, createdIssue)
+	assert.Nil(t, createdIssue.ParentID, "empty string ParentID should be coerced to nil")
 }

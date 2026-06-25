@@ -18,6 +18,7 @@ type SprintRepository interface {
 	Complete(ctx context.Context, id string, completedAt time.Time) error
 
 	AddIssue(ctx context.Context, sprintID, issueID string) error
+	BulkAddIssues(ctx context.Context, sprintID string, issueIDs []string) error
 	RemoveIssue(ctx context.Context, sprintID, issueID string) error
 
 	GetReport(ctx context.Context, sprintID string) (*entity.SprintReport, error)

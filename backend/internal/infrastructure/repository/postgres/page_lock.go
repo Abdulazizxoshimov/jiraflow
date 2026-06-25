@@ -23,16 +23,30 @@ func NewPageLockRepo(p *pg.Postgres) repository.PageLockRepository {
 }
 
 func (r *pageLockRepo) Acquire(ctx context.Context, lock *entity.PageLock) error {
-	_, err := r.db.Exec(ctx, `
-		INSERT INTO page_locks(page_id, user_id, expires_at, created_at)
-		VALUES($1, $2, $3, NOW())
+	sessionID := lock.SessionID
+	if sessionID == "" {
+		sessionID = lock.UserID
+	}
+	// Allow take-over only when lock is expired OR the same user is re-acquiring.
+	// This whole operation is atomic — no TOCTOU race between Get() and INSERT.
+	tag, err := r.db.Exec(ctx, `
+		INSERT INTO page_locks(page_id, user_id, session_id, expires_at, created_at)
+		VALUES($1, $2, $3, $4, NOW())
 		ON CONFLICT (page_id) DO UPDATE
-		  SET user_id = EXCLUDED.user_id,
+		  SET user_id    = EXCLUDED.user_id,
+		      session_id = EXCLUDED.session_id,
 		      expires_at = EXCLUDED.expires_at,
 		      created_at = NOW()
 		  WHERE page_locks.expires_at < NOW()
-	`, lock.PageID, lock.UserID, lock.ExpiresAt)
-	return err
+		     OR page_locks.user_id = EXCLUDED.user_id
+	`, lock.PageID, lock.UserID, sessionID, lock.ExpiresAt)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return apperr.Conflict("page is locked by another user")
+	}
+	return nil
 }
 
 func (r *pageLockRepo) Release(ctx context.Context, pageID, userID string) error {

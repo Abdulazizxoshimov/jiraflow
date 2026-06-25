@@ -21,6 +21,10 @@ import (
 // @Router /api/v1/auth/register [post]
 func Register(h *handlers.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !h.AllowOpenRegistration {
+			hs.Forbidden(c, "Open registration is disabled. Ask an admin to invite you.")
+			return
+		}
 		var req entity.RegisterReq
 		if err := c.ShouldBindJSON(&req); err != nil {
 			hs.BadRequest(c, err.Error())

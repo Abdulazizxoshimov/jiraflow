@@ -117,6 +117,9 @@ func (uc *useCase) Update(ctx context.Context, id string, req *entity.UpdateUser
 	if req.Language != nil {
 		u.Language = *req.Language
 	}
+	if req.Role != nil {
+		u.Role = *req.Role
+	}
 	if err := uc.repo.Update(ctx, u); err != nil {
 		uc.log.Error(ctx, "user.Update: db error", logger.String("id", id), logger.SafeString("err", err.Error()))
 		return nil, err
@@ -172,5 +175,14 @@ func (uc *useCase) Activate(ctx context.Context, id string) error {
 		return err
 	}
 	uc.log.Info(ctx, "user activated", logger.String("id", id))
+	return nil
+}
+
+func (uc *useCase) Delete(ctx context.Context, id string) error {
+	if err := uc.repo.SoftDelete(ctx, id); err != nil {
+		uc.log.Error(ctx, "user.Delete: db error", logger.String("id", id), logger.SafeString("err", err.Error()))
+		return err
+	}
+	uc.log.Info(ctx, "user deleted", logger.String("id", id))
 	return nil
 }

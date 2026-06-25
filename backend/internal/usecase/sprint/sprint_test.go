@@ -14,7 +14,7 @@ import (
 )
 
 func newUC(repo *testutil.SprintRepoMock) sprint.UseCase {
-	return sprint.New(repo, nil, nil, nil, nil, testutil.DispatcherMock{}, testutil.NopLogger{})
+	return sprint.New(repo, nil, nil, nil, nil, testutil.ProjectMemberRepoMock{}, testutil.DispatcherMock{}, testutil.NopLogger{})
 }
 
 // ─── Create ──────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ func TestCreate_SetsPlannedStatus(t *testing.T) {
 	}
 
 	uc := newUC(repo)
-	result, err := uc.Create(ctx, "proj-1", "user-1", &entity.Sprint{Name: "Sprint 1"})
+	result, err := uc.Create(ctx, "proj-1", "user-1", false, &entity.Sprint{Name: "Sprint 1"})
 
 	require.NoError(t, err)
 	assert.Equal(t, "planned", result.Status)

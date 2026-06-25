@@ -41,74 +41,81 @@ func (r *searchRepo) Search(ctx context.Context, filter *entity.SearchFilter) ([
 	for _, t := range types {
 		switch t {
 		case entity.SearchResultIssue:
+			// tsqIdx is always first; optional project_id comes after
+			tsqIdx := argIdx
+			args = append(args, tsquery)
+			argIdx++
 			cond := ""
 			if filter.ProjectID != "" {
-				cond = fmt.Sprintf(" AND i.project_id=$%d", argIdx+1)
-				args = append(args, tsquery, filter.ProjectID)
-				argIdx += 2
-			} else {
-				args = append(args, tsquery)
+				cond = fmt.Sprintf(" AND i.project_id=$%d::uuid", argIdx)
+				args = append(args, filter.ProjectID)
 				argIdx++
 			}
 			parts = append(parts, fmt.Sprintf(`
 				SELECT 'issue' AS type, i.id, i.title,
 				       LEFT(COALESCE(i.description,''), 200) AS excerpt,
 				       i.updated_at,
-				       COALESCE(ts_rank(i.search_vector, plainto_tsquery('english', $%d)), 0) AS score
+				       COALESCE(ts_rank(i.search_vector, plainto_tsquery('english', $%d::text)), 0) AS score,
+				       i.project_id::text AS meta_id
 				FROM issues i
 				WHERE i.deleted_at IS NULL
-				  AND (i.search_vector @@ plainto_tsquery('english', $%d)
-				       OR i.title ILIKE '%%' || $%d || '%%')
+				  AND (i.search_vector @@ plainto_tsquery('english', $%d::text)
+				       OR i.title ILIKE '%%' || $%d::text || '%%')
 				  %s
-			`, argIdx-1, argIdx-1, argIdx-1, cond))
+			`, tsqIdx, tsqIdx, tsqIdx, cond))
 
 		case entity.SearchResultPage:
+			tsqIdx := argIdx
+			args = append(args, tsquery)
+			argIdx++
 			cond := ""
 			if filter.SpaceID != "" {
-				cond = fmt.Sprintf(" AND p.space_id=$%d", argIdx+1)
-				args = append(args, tsquery, filter.SpaceID)
-				argIdx += 2
-			} else {
-				args = append(args, tsquery)
+				cond = fmt.Sprintf(" AND p.space_id=$%d::uuid", argIdx)
+				args = append(args, filter.SpaceID)
 				argIdx++
 			}
 			parts = append(parts, fmt.Sprintf(`
 				SELECT 'page' AS type, p.id, p.title,
 				       LEFT(p.content_text, 200) AS excerpt,
 				       p.updated_at,
-				       COALESCE(ts_rank(p.search_vector, plainto_tsquery('english', $%d)), 0) AS score
+				       COALESCE(ts_rank(p.search_vector, plainto_tsquery('english', $%d::text)), 0) AS score,
+				       p.space_id::text AS meta_id
 				FROM pages p
 				WHERE p.deleted_at IS NULL AND p.status='published'
-				  AND (p.search_vector @@ plainto_tsquery('english', $%d)
-				       OR p.title ILIKE '%%' || $%d || '%%')
+				  AND (p.search_vector @@ plainto_tsquery('english', $%d::text)
+				       OR p.title ILIKE '%%' || $%d::text || '%%')
 				  %s
-			`, argIdx-1, argIdx-1, argIdx-1, cond))
+			`, tsqIdx, tsqIdx, tsqIdx, cond))
 
 		case entity.SearchResultProject:
+			tsqIdx := argIdx
 			args = append(args, tsquery)
 			argIdx++
 			parts = append(parts, fmt.Sprintf(`
 				SELECT 'project' AS type, pr.id, pr.name AS title,
 				       LEFT(COALESCE(pr.description,''), 200) AS excerpt,
 				       pr.updated_at,
-				       0.0::float AS score
+				       0.0::float AS score,
+				       NULL::text AS meta_id
 				FROM projects pr
 				WHERE pr.deleted_at IS NULL AND pr.is_archived=FALSE
-				  AND pr.name ILIKE '%%' || $%d || '%%'
-			`, argIdx-1))
+				  AND pr.name ILIKE '%%' || $%d::text || '%%'
+			`, tsqIdx))
 
 		case entity.SearchResultSpace:
+			tsqIdx := argIdx
 			args = append(args, tsquery)
 			argIdx++
 			parts = append(parts, fmt.Sprintf(`
 				SELECT 'space' AS type, sp.id, sp.name AS title,
 				       '' AS excerpt,
 				       sp.updated_at,
-				       0.0::float AS score
+				       0.0::float AS score,
+				       NULL::text AS meta_id
 				FROM spaces sp
 				WHERE sp.deleted_at IS NULL AND sp.is_archived=FALSE
-				  AND sp.name ILIKE '%%' || $%d || '%%'
-			`, argIdx-1))
+				  AND sp.name ILIKE '%%' || $%d::text || '%%'
+			`, tsqIdx))
 		}
 	}
 
@@ -139,7 +146,7 @@ func (r *searchRepo) Search(ctx context.Context, filter *entity.SearchFilter) ([
 
 	args = append(args, limit, offset)
 	dataSQL := fmt.Sprintf(`
-		SELECT type, id, title, excerpt, updated_at, score
+		SELECT type, id, title, excerpt, updated_at, score, meta_id
 		FROM (%s) sub
 		ORDER BY score DESC, updated_at DESC
 		LIMIT $%d OFFSET $%d
@@ -156,10 +163,20 @@ func (r *searchRepo) Search(ctx context.Context, filter *entity.SearchFilter) ([
 		res := &entity.SearchResult{}
 		var updatedAt time.Time
 		var score float64
-		if err := rows.Scan(&res.Type, &res.ID, &res.Title, &res.Excerpt, &updatedAt, &score); err != nil {
+		var metaID *string
+		if err := rows.Scan(&res.Type, &res.ID, &res.Title, &res.Excerpt, &updatedAt, &score, &metaID); err != nil {
 			return nil, 0, err
 		}
 		res.UpdatedAt = updatedAt
+		if metaID != nil {
+			res.Meta = map[string]any{}
+			switch res.Type {
+			case entity.SearchResultPage:
+				res.Meta["space_id"] = *metaID
+			case entity.SearchResultIssue:
+				res.Meta["project_id"] = *metaID
+			}
+		}
 		results = append(results, res)
 	}
 	return results, total, rows.Err()

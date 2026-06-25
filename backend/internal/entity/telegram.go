@@ -43,3 +43,8 @@ type TelegramStatusResp struct {
 	Username   *string    `json:"username,omitempty"`
 	VerifiedAt *time.Time `json:"verified_at,omitempty"`
 }
+
+type TelegramBotInfo struct {
+	Username   string `json:"username"`
+	WebhookURL string `json:"webhook_url"`
+}

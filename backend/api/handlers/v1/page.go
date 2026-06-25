@@ -29,7 +29,8 @@ func CreatePage(h *handlers.Handler) gin.HandlerFunc {
 			hs.BadRequest(c, err.Error())
 			return
 		}
-		page, err := h.Page.Create(c.Request.Context(), spaceID, authorID, &req)
+		isAdmin := c.GetString(middleware.CtxRole) == "admin"
+		page, err := h.Page.Create(c.Request.Context(), spaceID, authorID, isAdmin, &req)
 		if err != nil {
 			hs.Error(c, err)
 			return
@@ -129,7 +130,8 @@ func DeletePage(h *handlers.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
 		actorID := c.GetString(middleware.CtxUserID)
-		if err := h.Page.Delete(c.Request.Context(), id, actorID); err != nil {
+		isAdmin := c.GetString(middleware.CtxRole) == "admin"
+		if err := h.Page.Delete(c.Request.Context(), id, actorID, isAdmin); err != nil {
 			hs.Error(c, err)
 			return
 		}

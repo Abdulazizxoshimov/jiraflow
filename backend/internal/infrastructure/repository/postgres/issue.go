@@ -85,14 +85,20 @@ func (r *issueRepo) GetByID(ctx context.Context, id string) (*entity.Issue, erro
 	return issue, err
 }
 
+// keyIssueCols prefixes every column with the "i." table alias to avoid
+// ambiguous column references when joining with the projects table.
+const keyIssueCols = `i.id, i.project_id, i.issue_number, i.title, i.description, i.type, i.status_id, i.priority,
+	i.assignee_id, i.reporter_id, i.parent_id, i.sprint_id, i.story_points, i.due_date,
+	i.original_estimate, i.remaining_estimate, i.custom_fields, i.resolution, i.position, i.created_at, i.updated_at, i.deleted_at`
+
 func (r *issueRepo) GetByKey(ctx context.Context, key string) (*entity.Issue, error) {
 	// key = "PROJ-42" — proekt kaliti va issue raqamini join orqali qidiradi
 	sql, args, err := r.builder.
-		Select("i."+issueCols).
+		Select(keyIssueCols).
 		From("issues i").
 		Join("projects p ON p.id = i.project_id").
 		Where(sq.And{
-			sq.Expr("UPPER(p.key) || '-' || i.issue_number = ?", key),
+			sq.Expr("UPPER(p.key) || '-' || i.issue_number::text = UPPER(?)", key),
 			sq.Eq{"i.deleted_at": nil},
 		}).
 		ToSql()
@@ -556,6 +562,35 @@ func (r *issueRepo) BulkUpdate(ctx context.Context, req *entity.BulkUpdateIssueR
 	}
 
 	return updated, rows.Err()
+}
+
+func (r *issueRepo) BulkCreate(ctx context.Context, issues []*entity.Issue) error {
+	if len(issues) == 0 {
+		return nil
+	}
+	q := r.builder.
+		Insert("issues").
+		Columns("id", "project_id", "issue_number", "title", "description", "type", "status_id", "priority",
+			"assignee_id", "reporter_id", "parent_id", "sprint_id", "story_points", "due_date",
+			"original_estimate", "remaining_estimate", "custom_fields", "created_at", "updated_at")
+
+	for _, issue := range issues {
+		cfJSON, err := json.Marshal(issue.CustomFields)
+		if err != nil {
+			return fmt.Errorf("issueRepo.BulkCreate marshal custom_fields: %w", err)
+		}
+		q = q.Values(issue.ID, issue.ProjectID, issue.IssueNumber, issue.Title, issue.Description,
+			issue.Type, issue.StatusID, issue.Priority, issue.AssigneeID, issue.ReporterID,
+			issue.ParentID, issue.SprintID, issue.StoryPoints, issue.DueDate,
+			issue.OriginalEstimate, issue.RemainingEstimate, cfJSON, issue.CreatedAt, issue.UpdatedAt)
+	}
+
+	sql, args, err := q.ToSql()
+	if err != nil {
+		return fmt.Errorf("issueRepo.BulkCreate: %w", err)
+	}
+	_, err = r.db.Exec(ctx, sql, args...)
+	return err
 }
 
 func (r *issueRepo) BulkDelete(ctx context.Context, issueIDs []string) error {

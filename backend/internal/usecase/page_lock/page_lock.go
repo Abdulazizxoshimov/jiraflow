@@ -7,7 +7,7 @@ import (
 
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
 	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
-	apperr "github.com/jira-backend/jiraflow-backend/internal/pkg/errors"
+	ws "github.com/jira-backend/jiraflow-backend/internal/infrastructure/websocket"
 )
 
 const (
@@ -17,10 +17,11 @@ const (
 
 type useCase struct {
 	repo repository.PageLockRepository
+	hub  *ws.Hub
 }
 
-func New(repo repository.PageLockRepository) UseCase {
-	return &useCase{repo: repo}
+func New(repo repository.PageLockRepository, hub *ws.Hub) UseCase {
+	return &useCase{repo: repo, hub: hub}
 }
 
 func (uc *useCase) Acquire(ctx context.Context, pageID, userID string, ttlSeconds int) (*entity.PageLock, error) {
@@ -31,24 +32,32 @@ func (uc *useCase) Acquire(ctx context.Context, pageID, userID string, ttlSecond
 		ttlSeconds = maxTTL
 	}
 
-	existing, err := uc.repo.Get(ctx, pageID)
-	if err == nil && existing.UserID != userID {
-		return nil, apperr.Conflict("page is locked by another user")
-	}
-
 	lock := &entity.PageLock{
 		PageID:    pageID,
 		UserID:    userID,
 		ExpiresAt: time.Now().UTC().Add(time.Duration(ttlSeconds) * time.Second),
 	}
+	// Acquire is atomic in the DB — no separate Get() needed (eliminates TOCTOU).
 	if err := uc.repo.Acquire(ctx, lock); err != nil {
-		return nil, fmt.Errorf("pageLock.Acquire: %w", err)
+		return nil, err
+	}
+
+	if uc.hub != nil {
+		uc.hub.BroadcastToRoom(ws.NewPageLockedMsg(pageID, map[string]any{
+			"page_id": pageID, "user_id": userID, "expires_at": lock.ExpiresAt,
+		}))
 	}
 	return lock, nil
 }
 
 func (uc *useCase) Release(ctx context.Context, pageID, userID string) error {
-	return uc.repo.Release(ctx, pageID, userID)
+	err := uc.repo.Release(ctx, pageID, userID)
+	if err == nil && uc.hub != nil {
+		uc.hub.BroadcastToRoom(ws.NewPageUnlockedMsg(pageID, map[string]any{
+			"page_id": pageID, "user_id": userID,
+		}))
+	}
+	return err
 }
 
 func (uc *useCase) Get(ctx context.Context, pageID string) (*entity.PageLock, error) {

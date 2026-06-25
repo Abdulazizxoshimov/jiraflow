@@ -93,6 +93,17 @@ func (r *telegramRepo) UpdateVerified(ctx context.Context, id string, telegramID
 	return err
 }
 
+// Link upserts a verified connection: bot sends code → user enters on website.
+func (r *telegramRepo) Link(ctx context.Context, userID string, telegramID, chatID int64, username string) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO telegram_connections(id, user_id, telegram_id, chat_id, username, verified_at, created_at)
+		VALUES(gen_random_uuid(), $1, $2, $3, $4, NOW(), NOW())
+		ON CONFLICT(user_id) DO UPDATE
+		SET telegram_id=$2, chat_id=$3, username=$4, verified_at=NOW(), verification_code=NULL
+	`, userID, telegramID, chatID, username)
+	return err
+}
+
 func (r *telegramRepo) Delete(ctx context.Context, userID string) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM telegram_connections WHERE user_id=$1`, userID)
 	return err

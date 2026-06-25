@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"net/url"
+
 	"github.com/gin-gonic/gin"
 
 	hs "github.com/jira-backend/jiraflow-backend/api/http_status"
@@ -130,6 +132,142 @@ func ChangePassword(h *handlers.Handler) gin.HandlerFunc {
 			return
 		}
 		if err := h.User.ChangePassword(c.Request.Context(), userID, &req); err != nil {
+			hs.Error(c, err)
+			return
+		}
+		hs.NoContent(c)
+	}
+}
+
+// GetCurrentUser godoc
+// @Summary      Get current user profile
+// @Tags         users
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{data=entity.User}
+// @Router       /api/v1/users/me [get]
+func GetCurrentUser(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetString(middleware.CtxUserID)
+		user, err := h.User.GetByID(c.Request.Context(), userID)
+		if err != nil {
+			hs.Error(c, err)
+			return
+		}
+		hs.Success(c, user)
+	}
+}
+
+// UpdateCurrentUser godoc
+// @Summary      Update current user profile
+// @Tags         users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body  entity.UpdateUserReq  true  "Update data"
+// @Success      200  {object}  object{data=entity.User}
+// @Router       /api/v1/users/me [put]
+func UpdateCurrentUser(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetString(middleware.CtxUserID)
+		var req entity.UpdateUserReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			hs.BadRequest(c, err.Error())
+			return
+		}
+		user, err := h.User.Update(c.Request.Context(), userID, &req)
+		if err != nil {
+			hs.Error(c, err)
+			return
+		}
+		hs.Success(c, user)
+	}
+}
+
+// ChangeCurrentPassword godoc
+// @Summary      Change current user password
+// @Tags         users
+// @Accept       json
+// @Security     BearerAuth
+// @Param        body  body  entity.ChangePasswordReq  true  "Passwords"
+// @Success      204
+// @Router       /api/v1/users/me/password [put]
+func ChangeCurrentPassword(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetString(middleware.CtxUserID)
+		var req entity.ChangePasswordReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			hs.BadRequest(c, err.Error())
+			return
+		}
+		if err := h.User.ChangePassword(c.Request.Context(), userID, &req); err != nil {
+			hs.Error(c, err)
+			return
+		}
+		hs.NoContent(c)
+	}
+}
+
+// UploadAvatar godoc
+// @Summary      Upload avatar for current user
+// @Tags         users
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        file  formData  file  true  "Avatar image"
+// @Success      200  {object}  object{data=entity.User}
+// @Router       /api/v1/users/me/avatar [post]
+func UploadAvatar(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetString(middleware.CtxUserID)
+
+		fh, err := c.FormFile("file")
+		if err != nil {
+			hs.BadRequest(c, "file is required")
+			return
+		}
+		f, err := fh.Open()
+		if err != nil {
+			hs.Error(c, err)
+			return
+		}
+		defer f.Close()
+
+		mimeType := fh.Header.Get("Content-Type")
+		if mimeType == "" {
+			mimeType = "image/jpeg"
+		}
+
+		uploaded, err := h.File.Upload(c.Request.Context(), userID, fh.Filename, fh.Size, mimeType, f)
+		if err != nil {
+			hs.Error(c, err)
+			return
+		}
+
+		proxyURL := "/api/v1/files/proxy?path=" + url.QueryEscape(uploaded.StoragePath)
+		user, err := h.User.Update(c.Request.Context(), userID, &entity.UpdateUserReq{
+			AvatarURL: &proxyURL,
+		})
+		if err != nil {
+			hs.Error(c, err)
+			return
+		}
+		hs.Success(c, user)
+	}
+}
+
+// DeleteUser godoc
+// @Summary      Delete user (soft-delete)
+// @Tags         users
+// @Security     BearerAuth
+// @Param        id  path  string  true  "User ID"
+// @Success      204
+// @Failure      404  {object}  object{code=string,message=string}
+// @Router       /api/v1/users/{id} [delete]
+func DeleteUser(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.Param("id")
+		if err := h.User.Delete(c.Request.Context(), id); err != nil {
 			hs.Error(c, err)
 			return
 		}

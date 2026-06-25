@@ -14,4 +14,5 @@ type UseCase interface {
 	ChangePassword(ctx context.Context, id string, req *entity.ChangePasswordReq) error
 	Deactivate(ctx context.Context, id string) error
 	Activate(ctx context.Context, id string) error
+	Delete(ctx context.Context, id string) error
 }

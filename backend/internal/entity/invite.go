@@ -13,7 +13,8 @@ type Invite struct {
 	AcceptedBy *string    `json:"accepted_by,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
 
-	Inviter *UserShort `json:"inviter,omitempty"`
+	Inviter   *UserShort `json:"inviter,omitempty"`
+	InviteURL string     `json:"invite_url,omitempty"`
 }
 
 type CreateInviteReq struct {

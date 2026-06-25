@@ -1,13 +1,206 @@
-// panels_admin.jsx — AdminView panels: API keys (12), Audit log (13), Import (26)
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Icon } from '../components/icons';
+import { Avatar, Badge, Button, Modal, Empty, useToast } from '../components/components';
+import { useApp } from '../store/AppContext';
+import { api, apiDownload, apiUpload, apiImport, useApi } from '../api/api';
+import { fmtDate, adaptUser } from '../api/adapters';
+import { MiniSpinner } from './issue';
+import { ConfirmDelete } from './settings';
+
+// ─── Feature: Users management (admin only) ───────────────────────────
+const USER_ROLES = ["admin", "member", "viewer"];
+
+export function UsersPanel() {
+  const { me } = useApp();
+  const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [roleModal, setRoleModal] = useState(null); // { user }
+  const [newRole, setNewRole] = useState("member");
+  const [savingRole, setSavingRole] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null); // user
+  const toast = useToast();
+  const limit = 25;
+
+  async function load(p = 1, q = search) {
+    setLoading(true);
+    try {
+      const qs = new URLSearchParams({ page: String(p), limit: String(limit) });
+      if (q) qs.set("q", q);
+      const d = await api("/users?" + qs.toString());
+      setUsers(d.items || d.data || []);
+      setTotal(d.total || 0);
+      setPage(p);
+    } catch (e) {
+      toast(e.message, { icon: "x", color: "#F87171" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(1, search); }, [search]);
+
+  function openRoleModal(u) { setRoleModal(u); setNewRole(u.role || "member"); }
+
+  async function saveRole() {
+    if (!roleModal) return;
+    setSavingRole(true);
+    try {
+      await api("/users/" + roleModal.id, { method: "PUT", body: { role: newRole } });
+      setUsers((prev) => prev.map((u) => u.id === roleModal.id ? { ...u, role: newRole } : u));
+      toast("Role updated");
+      setRoleModal(null);
+    } catch (e) {
+      toast(e.message, { icon: "x", color: "#F87171" });
+    } finally {
+      setSavingRole(false);
+    }
+  }
+
+  async function toggleActive(u) {
+    const endpoint = u.is_active ? `/users/${u.id}/deactivate` : `/users/${u.id}/activate`;
+    try {
+      await api(endpoint, { method: "POST" });
+      setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, is_active: !u.is_active } : x));
+      toast(u.is_active ? "User deactivated" : "User activated");
+    } catch (e) {
+      toast(e.message, { icon: "x", color: "#F87171" });
+    }
+  }
+
+  async function deleteUser(u) {
+    try {
+      await api("/users/" + u.id, { method: "DELETE" });
+      setUsers((prev) => prev.filter((x) => x.id !== u.id));
+      setTotal((t) => t - 1);
+      toast("User deleted");
+      setConfirmDelete(null);
+    } catch (e) {
+      toast(e.message, { icon: "x", color: "#F87171" });
+    }
+  }
+
+  const ROLE_TONE = { admin: "danger", member: "info", viewer: "muted" };
+
+  return (
+    <div>
+      <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+        <div className="search" style={{ width: 280, padding: "4px 10px" }}>
+          <Icon name="search" size={13}/>
+          <input placeholder="Search users…" value={search} onChange={(e) => setSearch(e.target.value)}/>
+        </div>
+        <span className="text-xs muted">{total} users total</span>
+      </div>
+
+      <div className="card" style={{ overflow: "hidden" }}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th style={{ width: 100 }}>Role</th>
+              <th style={{ width: 90 }}>Status</th>
+              <th style={{ width: 130 }}>Joined</th>
+              <th style={{ width: 110 }}/>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id}>
+                <td>
+                  <div className="row gap-3">
+                    <Avatar user={{ name: u.full_name, color: u.color, avatarUrl: u.avatar_url }} size="sm"/>
+                    <div className="stack" style={{ lineHeight: 1.25 }}>
+                      <span className="bold text-sm">{u.full_name}</span>
+                      <span className="text-xs muted">{u.email}</span>
+                    </div>
+                  </div>
+                </td>
+                <td><Badge tone={ROLE_TONE[u.role] || "muted"}>{u.role}</Badge></td>
+                <td>
+                  <Badge tone={u.is_active ? "success" : "muted"} dot>
+                    {u.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </td>
+                <td className="text-xs muted">{fmtDate(u.created_at)}</td>
+                <td>
+                  <div className="row gap-1" style={{ justifyContent: "flex-end" }}>
+                    <Button data-size="sm" variant="ghost" icon="shield" onClick={() => openRoleModal(u)} disabled={u.id === me?.id}>
+                      Role
+                    </Button>
+                    <Button data-size="sm" variant="ghost"
+                      onClick={() => toggleActive(u)}
+                      disabled={u.id === me?.id}
+                      style={{ color: u.is_active ? "var(--warning)" : "var(--success)" }}>
+                      {u.is_active ? "Deactivate" : "Activate"}
+                    </Button>
+                    <Button data-size="sm" variant="ghost" icon="trash"
+                      style={{ color: "var(--danger)" }}
+                      onClick={() => setConfirmDelete(u)}
+                      disabled={u.id === me?.id}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {loading && <div className="row gap-2 text-sm muted" style={{ padding: 16 }}><MiniSpinner/> Loading…</div>}
+        {!loading && users.length === 0 && <Empty icon="users" title="No users found"/>}
+        {!loading && users.length < total && (
+          <div style={{ padding: 12, textAlign: "center", borderTop: "1px solid var(--border)" }}>
+            <Button data-size="sm" onClick={() => load(page + 1)}>Load more <span className="muted">({users.length} of {total})</span></Button>
+          </div>
+        )}
+      </div>
+
+      <Modal open={!!roleModal} onClose={() => setRoleModal(null)} title="Change role"
+        footer={<>
+          <Button onClick={() => setRoleModal(null)}>Cancel</Button>
+          <Button variant="primary" disabled={savingRole} onClick={saveRole}>{savingRole ? "Saving…" : "Save"}</Button>
+        </>}>
+        {roleModal && (
+          <div>
+            <div className="text-sm secondary" style={{ marginBottom: 14 }}>
+              Change role for <strong>{roleModal.full_name}</strong>
+            </div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {USER_ROLES.map((r) => (
+                <label key={r} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: "1px solid " + (newRole === r ? "var(--indigo-400)" : "var(--border)"), background: newRole === r ? "var(--indigo-50)" : "var(--bg)", cursor: "pointer" }}>
+                  <input type="radio" name="role" value={r} checked={newRole === r} onChange={() => setNewRole(r)} style={{ marginRight: 2 }}/>
+                  <div>
+                    <div style={{ fontWeight: 500, fontSize: 13 }}>{r.charAt(0).toUpperCase() + r.slice(1)}</div>
+                    <div className="text-xs muted">
+                      {r === "admin" ? "Full access including user management" : r === "member" ? "Can create and manage issues and pages" : "Read-only access to all content"}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDelete
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => confirmDelete && deleteUser(confirmDelete)}
+        title="Delete user"
+        body={confirmDelete ? `Permanently delete "${confirmDelete.full_name}"? This cannot be undone.` : ""}
+      />
+    </div>
+  );
+}
 
 // ─── Feature 12: API keys ─────────────────────────────────────────────
-function ApiKeysPanel() {
+export function ApiKeysPanel() {
   const { data: keys, loading, error, reload } = useApi("/api-keys");
-  const [genOpen, setGenOpen] = React.useState(false);
-  const [name, setName] = React.useState("");
-  const [created, setCreated] = React.useState(null); // {plain_key,...}
-  const [confirm, setConfirm] = React.useState(null);
-  const [copied, setCopied] = React.useState(false);
+  const [genOpen, setGenOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [created, setCreated] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [copied, setCopied] = useState(false);
   const toast = useToast();
 
   async function generate() {
@@ -49,7 +242,6 @@ function ApiKeysPanel() {
         </div>
       )}
 
-      {/* Generate modal */}
       <Modal open={genOpen} onClose={() => setGenOpen(false)} title="Generate API key"
         footer={<><Button onClick={() => setGenOpen(false)}>Cancel</Button><Button variant="primary" disabled={!name.trim()} onClick={generate}>Generate</Button></>}>
         <label className="label">Key name</label>
@@ -57,7 +249,6 @@ function ApiKeysPanel() {
         <div className="help" style={{ marginTop: 8 }}>Give the key a descriptive name so you can identify it later.</div>
       </Modal>
 
-      {/* Show-once modal */}
       <Modal open={!!created} onClose={() => setCreated(null)} title="API key created"
         footer={<Button variant="primary" onClick={() => setCreated(null)}>Done</Button>}>
         <div className="card card-pad" style={{ background: "var(--warning-bg)", borderColor: "var(--warning)", marginBottom: 14 }}>
@@ -81,29 +272,32 @@ function ApiKeysPanel() {
 
 // ─── Feature 13: Audit log ────────────────────────────────────────────
 const ACTION_CAT_TONE = { create: "success", update: "info", delete: "danger", auth: "purple" };
-function AuditLogPanel() {
-  const [filters, setFilters] = React.useState({ user_id: "", action: "", from: "", to: "" });
-  const [page, setPage] = React.useState(1);
-  const [rows, setRows] = React.useState([]);
-  const [total, setTotal] = React.useState(0);
-  const [loading, setLoading] = React.useState(true);
+export function AuditLogPanel() {
+  const { people } = useApp();
+  const [filters, setFilters] = useState({ user_id: "", action: "", from: "", to: "" });
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
   const toast = useToast();
   const limit = 50;
 
-  const qs = React.useMemo(() => {
+  const qs = useMemo(() => {
     const p = new URLSearchParams({ page: String(page), limit: String(limit) });
     Object.entries(filters).forEach(([k, v]) => { if (v) p.set(k, v); });
     return p.toString();
   }, [filters, page]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     let live = true; setLoading(true);
     api("/audit-logs?" + qs).then((d) => {
       if (!live) return;
-      setRows((prev) => page === 1 ? d.items : [...prev, ...d.items]);
-      setTotal(d.total); setLoading(false);
+      const items = d.items || d.data || [];
+      setRows((prev) => page === 1 ? items : [...prev, ...items]);
+      setTotal(d.total || items.length); setLoading(false);
     }).catch((e) => { if (live) { toast(e.message, { icon: "x", color: "#F87171" }); setLoading(false); } });
     return () => { live = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qs]);
 
   function setF(k, v) { setFilters((f) => ({ ...f, [k]: v })); setPage(1); }
@@ -111,7 +305,6 @@ function AuditLogPanel() {
 
   return (
     <div>
-      {/* Filter bar */}
       <div className="card card-pad" style={{ marginBottom: 12 }}>
         <div className="row gap-3" style={{ flexWrap: "wrap", alignItems: "flex-end" }}>
           <div><label className="label">From</label><input className="input" type="date" value={filters.from} onChange={(e) => setF("from", e.target.value)} style={{ width: 150 }}/></div>
@@ -125,7 +318,7 @@ function AuditLogPanel() {
           <div><label className="label">User</label>
             <select className="select" value={filters.user_id} onChange={(e) => setF("user_id", e.target.value)} style={{ width: 170 }}>
               <option value="">All users</option>
-              {FORGE_DATA.PEOPLE.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              {(people || []).map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
           <div style={{ flex: 1 }}/>
@@ -163,11 +356,11 @@ function AuditLogPanel() {
 
 // ─── Feature 26: Data import ──────────────────────────────────────────
 const IMPORT_SOURCES = [
-  { key: "jira", name: "Jira", format: "XML", icon: "briefcase", desc: "Import your Jira projects, issues, and workflows." },
-  { key: "trello", name: "Trello", format: "JSON", icon: "layout", desc: "Bring boards and cards over from Trello." },
-  { key: "linear", name: "Linear", format: "CSV", icon: "list", desc: "Migrate issues and teams from Linear." },
+  { key: "jira",   name: "Jira",   format: "XML",  icon: "briefcase", desc: "Import your Jira projects, issues, and workflows." },
+  { key: "trello", name: "Trello", format: "JSON", icon: "layout",    desc: "Bring boards and cards over from Trello." },
+  { key: "linear", name: "Linear", format: "CSV",  icon: "list",      desc: "Migrate issues and teams from Linear." },
 ];
-function ImportPanel() {
+export function ImportPanel() {
   return (
     <div>
       <div className="text-sm secondary" style={{ marginBottom: 14 }}>Migrate from another tool. Files are processed in the background.</div>
@@ -179,19 +372,19 @@ function ImportPanel() {
 }
 
 function ImportCard({ source }) {
-  const [file, setFile] = React.useState(null);
-  const [job, setJob] = React.useState(null);
-  const [dragOver, setDragOver] = React.useState(false);
-  const inputRef = React.useRef(null);
-  const pollRef = React.useRef(null);
+  const [file, setFile] = useState(null);
+  const [job, setJob] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef(null);
+  const pollRef = useRef(null);
   const toast = useToast();
 
-  React.useEffect(() => () => clearInterval(pollRef.current), []);
+  useEffect(() => () => clearInterval(pollRef.current), []);
 
   async function start() {
     if (!file) return;
     try {
-      const res = await apiUpload("/import/" + source.key, file);
+      const res = await apiImport("/import/" + source.key, file);
       setJob({ id: res.id, status: res.status || "pending", progress: 0 });
       clearInterval(pollRef.current);
       pollRef.current = setInterval(() => poll(res.id), 3000);
@@ -206,7 +399,7 @@ function ImportCard({ source }) {
         clearInterval(pollRef.current);
         toast(j.status === "done" ? source.name + " import complete" : source.name + " import failed", j.status === "failed" ? { icon: "x", color: "#F87171" } : {});
       }
-    } catch (e) { clearInterval(pollRef.current); }
+    } catch { clearInterval(pollRef.current); }
   }
   function reset() { clearInterval(pollRef.current); setJob(null); setFile(null); }
 
@@ -257,5 +450,3 @@ function ImportCard({ source }) {
     </div>
   );
 }
-
-Object.assign(window, { ApiKeysPanel, AuditLogPanel, ImportPanel });

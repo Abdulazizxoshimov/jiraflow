@@ -7,7 +7,7 @@ import (
 )
 
 type UseCase interface {
-	Create(ctx context.Context, projectID string, req *entity.CreateIssueReq, reporterID string) (*entity.Issue, error)
+	Create(ctx context.Context, projectID string, req *entity.CreateIssueReq, reporterID string, isAdmin bool) (*entity.Issue, error)
 	GetByID(ctx context.Context, id string) (*entity.Issue, error)
 	GetByKey(ctx context.Context, key string) (*entity.Issue, error)
 	List(ctx context.Context, filter *entity.IssueFilter) ([]*entity.Issue, int, error)
@@ -20,6 +20,7 @@ type UseCase interface {
 	ListHistory(ctx context.Context, issueID string, filter *entity.Filter) ([]*entity.IssueHistory, int, error)
 	ReorderIssues(ctx context.Context, req *entity.ReorderIssuesReq) error
 
+	BulkCreate(ctx context.Context, projectID string, req *entity.BulkCreateIssueReq, reporterID string) (*entity.BulkCreateResult, error)
 	BulkUpdate(ctx context.Context, req *entity.BulkUpdateIssueReq, actorID string) (*entity.BulkResult, error)
 	BulkDelete(ctx context.Context, req *entity.BulkDeleteIssueReq, actorID string) error
 	GetEpicProgress(ctx context.Context, epicID string) (*entity.EpicProgress, error)

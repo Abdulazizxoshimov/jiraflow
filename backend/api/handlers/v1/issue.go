@@ -27,7 +27,8 @@ func CreateIssue(h *handlers.Handler) gin.HandlerFunc {
 			hs.BadRequest(c, err.Error())
 			return
 		}
-		issue, err := h.Issue.Create(c.Request.Context(), req.ProjectID, &req, reporterID)
+		isAdmin := c.GetString(middleware.CtxRole) == "admin"
+		issue, err := h.Issue.Create(c.Request.Context(), req.ProjectID, &req, reporterID, isAdmin)
 		if err != nil {
 			hs.Error(c, err)
 			return

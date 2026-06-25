@@ -20,6 +20,7 @@ type useCase struct {
 	spaceRepo   repository.SpaceRepository
 	pageRepo    repository.PageRepository
 	versionRepo repository.PageVersionRepository
+	memberRepo  repository.ProjectMemberRepository
 	dispatcher  notification.Dispatcher
 	log         logger.Logger
 }
@@ -30,13 +31,24 @@ func New(
 	spaceRepo repository.SpaceRepository,
 	pageRepo repository.PageRepository,
 	versionRepo repository.PageVersionRepository,
+	memberRepo repository.ProjectMemberRepository,
 	dispatcher notification.Dispatcher,
 	log logger.Logger,
 ) UseCase {
-	return &useCase{repo: repo, issueRepo: issueRepo, spaceRepo: spaceRepo, pageRepo: pageRepo, versionRepo: versionRepo, dispatcher: dispatcher, log: log}
+	return &useCase{repo: repo, issueRepo: issueRepo, spaceRepo: spaceRepo, pageRepo: pageRepo, versionRepo: versionRepo, memberRepo: memberRepo, dispatcher: dispatcher, log: log}
 }
 
-func (uc *useCase) Create(ctx context.Context, projectID, createdBy string, s *entity.Sprint) (*entity.Sprint, error) {
+func (uc *useCase) Create(ctx context.Context, projectID, createdBy string, isAdmin bool, s *entity.Sprint) (*entity.Sprint, error) {
+	if !isAdmin {
+		m, err := uc.memberRepo.GetMember(ctx, projectID, createdBy)
+		if err != nil || m == nil {
+			return nil, apperr.Forbidden("you are not a member of this project")
+		}
+		if m.Role == "viewer" {
+			return nil, apperr.Forbidden("project viewers cannot create sprints")
+		}
+	}
+
 	now := time.Now().UTC()
 	s.ID = uuid.NewString()
 	s.ProjectID = projectID
@@ -310,9 +322,9 @@ func (uc *useCase) GetSprintPlanning(ctx context.Context, projectID string) (*en
 
 	if active != nil {
 		sprintFilter := &entity.IssueFilter{
-			Filter:   entity.Filter{Limit: large},
+			Filter:    entity.Filter{Limit: large},
 			ProjectID: projectID,
-			SprintID: active.ID,
+			SprintID:  active.ID,
 		}
 		items, _, err := uc.issueRepo.List(ctx, sprintFilter)
 		if err != nil {
@@ -334,14 +346,12 @@ func (uc *useCase) BulkAssignToSprint(ctx context.Context, projectID string, req
 	if sprint.Status == "completed" {
 		return apperr.BadRequest("cannot assign issues to a completed sprint")
 	}
-	for _, issueID := range req.IssueIDs {
-		if err := uc.repo.AddIssue(ctx, req.SprintID, issueID); err != nil {
-			uc.log.Warn(ctx, "sprint.BulkAssign: add issue failed",
-				logger.String("sprint_id", req.SprintID),
-				logger.String("issue_id", issueID),
-				logger.SafeString("err", err.Error()),
-			)
-		}
+	if err := uc.repo.BulkAddIssues(ctx, req.SprintID, req.IssueIDs); err != nil {
+		uc.log.Error(ctx, "sprint.BulkAssign: bulk add failed",
+			logger.String("sprint_id", req.SprintID),
+			logger.SafeString("err", err.Error()),
+		)
+		return fmt.Errorf("sprint.BulkAssign: %w", err)
 	}
 	return nil
 }
@@ -353,9 +363,9 @@ func (uc *useCase) GetCapacity(ctx context.Context, sprintID string) (*entity.Sp
 	}
 
 	issues, _, err := uc.issueRepo.List(ctx, &entity.IssueFilter{
-		Filter:   entity.Filter{Limit: 500},
+		Filter:    entity.Filter{Limit: 500},
 		ProjectID: sprint.ProjectID,
-		SprintID: sprintID,
+		SprintID:  sprintID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("sprint.GetCapacity list issues: %w", err)

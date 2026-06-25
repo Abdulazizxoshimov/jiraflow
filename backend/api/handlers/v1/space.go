@@ -28,7 +28,6 @@ func CreateSpace(h *handlers.Handler) gin.HandlerFunc {
 			return
 		}
 		s := &entity.Space{
-			Key:         req.Key,
 			Name:        req.Name,
 			Description: req.Description,
 			IconURL:     req.IconURL,

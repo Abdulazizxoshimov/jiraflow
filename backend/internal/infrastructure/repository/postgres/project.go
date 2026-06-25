@@ -172,6 +172,19 @@ func (r *projectRepo) IncrementIssueCounter(ctx context.Context, id string) (int
 	return counter, err
 }
 
+func (r *projectRepo) AllocateIssueCounters(ctx context.Context, id string, n int) (int64, error) {
+	var end int64
+	err := r.db.QueryRow(ctx,
+		`UPDATE projects SET issue_counter = issue_counter + $2 WHERE id=$1 AND deleted_at IS NULL RETURNING issue_counter`,
+		id, n,
+	).Scan(&end)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, apperr.NotFound("project")
+	}
+	// end is the new value; first allocated number = end - n + 1
+	return end - int64(n) + 1, err
+}
+
 func (r *projectRepo) GetDashboard(ctx context.Context, projectID string) (*entity.ProjectDashboard, error) {
 	d := &entity.ProjectDashboard{
 		IssuesByPriority: map[string]int{},

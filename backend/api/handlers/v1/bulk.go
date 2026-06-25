@@ -26,6 +26,28 @@ func BulkUpdateIssues(h *handlers.Handler) gin.HandlerFunc {
 	}
 }
 
+func BulkCreateIssues(h *handlers.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		reporterID := c.GetString(middleware.CtxUserID)
+		projectID := c.Query("project_id")
+		if projectID == "" {
+			hs.BadRequest(c, "project_id query param is required")
+			return
+		}
+		var req entity.BulkCreateIssueReq
+		if err := c.ShouldBindJSON(&req); err != nil {
+			hs.BadRequest(c, err.Error())
+			return
+		}
+		result, err := h.Issue.BulkCreate(c.Request.Context(), projectID, &req, reporterID)
+		if err != nil {
+			hs.Error(c, err)
+			return
+		}
+		hs.Created(c, result)
+	}
+}
+
 func BulkDeleteIssues(h *handlers.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		actorID := c.GetString(middleware.CtxUserID)

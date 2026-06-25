@@ -14,11 +14,12 @@ type useCase struct {
 	repo      repository.FavoriteRepository
 	pageRepo  repository.PageRepository
 	spaceRepo repository.SpaceRepository
+	issueRepo repository.IssueRepository
 	log       logger.Logger
 }
 
-func New(repo repository.FavoriteRepository, pageRepo repository.PageRepository, spaceRepo repository.SpaceRepository, log logger.Logger) UseCase {
-	return &useCase{repo: repo, pageRepo: pageRepo, spaceRepo: spaceRepo, log: log}
+func New(repo repository.FavoriteRepository, pageRepo repository.PageRepository, spaceRepo repository.SpaceRepository, issueRepo repository.IssueRepository, log logger.Logger) UseCase {
+	return &useCase{repo: repo, pageRepo: pageRepo, spaceRepo: spaceRepo, issueRepo: issueRepo, log: log}
 }
 
 func (uc *useCase) Add(ctx context.Context, userID string, req *entity.AddFavoriteReq) (*entity.Favorite, error) {
@@ -30,6 +31,10 @@ func (uc *useCase) Add(ctx context.Context, userID string, req *entity.AddFavori
 		}
 	case "space":
 		if _, err := uc.spaceRepo.GetByID(ctx, req.EntityID); err != nil {
+			return nil, err
+		}
+	case "issue":
+		if _, err := uc.issueRepo.GetByID(ctx, req.EntityID); err != nil {
 			return nil, err
 		}
 	default:
@@ -74,6 +79,11 @@ func (uc *useCase) List(ctx context.Context, userID string, filter *entity.Favor
 			space, err := uc.spaceRepo.GetByID(ctx, fav.EntityID)
 			if err == nil {
 				fav.Space = space
+			}
+		case "issue":
+			issue, err := uc.issueRepo.GetByID(ctx, fav.EntityID)
+			if err == nil {
+				fav.Issue = issue
 			}
 		}
 	}

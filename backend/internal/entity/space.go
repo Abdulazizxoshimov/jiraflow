@@ -20,7 +20,7 @@ type Space struct {
 }
 
 type CreateSpaceReq struct {
-	Key        string  `json:"key"         validate:"required,min=2,max=10"`
+	Key        string  `json:"key"         validate:"omitempty,max=10"`
 	Name       string  `json:"name"        validate:"required,min=2,max=255"`
 	Description *string `json:"description" validate:"omitempty,max=2000"`
 	IconURL    *string `json:"icon_url"    validate:"omitempty,url"`

@@ -25,6 +25,16 @@ type minioClient struct {
 	bucket string
 }
 
+// nopClient is returned when MinIO is unavailable; all operations return a descriptive error.
+type nopClient struct{}
+
+func (nopClient) EnsureBucket(_ context.Context) error                                           { return nil }
+func (nopClient) Upload(_ context.Context, _, _ string, _ io.Reader, _ int64) (string, error)   { return "", fmt.Errorf("minio: not configured") }
+func (nopClient) PresignedURL(_ context.Context, _ string, _ time.Duration) (string, error)     { return "", fmt.Errorf("minio: not configured") }
+func (nopClient) Delete(_ context.Context, _ string) error                                       { return fmt.Errorf("minio: not configured") }
+
+func NewNop() Client { return nopClient{} }
+
 func New(cfg config.MinioConfig) (Client, error) {
 	mc, err := minio.New(cfg.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),

@@ -52,9 +52,15 @@ CREATE TABLE IF NOT EXISTS permission_scheme_grants (
     permission  VARCHAR(100) NOT NULL,
     holder_type VARCHAR(50) NOT NULL, -- 'user' | 'role' | 'anyone'
     holder_id   UUID,                 -- NULL when holder_type = 'anyone'
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (scheme_id, permission, holder_type, COALESCE(holder_id, '00000000-0000-0000-0000-000000000000'::UUID))
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- partial unique indexes to handle NULL holder_id correctly
+CREATE UNIQUE INDEX IF NOT EXISTS uq_scheme_grants_with_holder
+    ON permission_scheme_grants (scheme_id, permission, holder_type, holder_id)
+    WHERE holder_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_scheme_grants_no_holder
+    ON permission_scheme_grants (scheme_id, permission, holder_type)
+    WHERE holder_id IS NULL;
 
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS permission_scheme_id UUID REFERENCES permission_schemes(id);
 

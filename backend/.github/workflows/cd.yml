@@ -46,3 +46,67 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+  deploy:
+    name: Deploy to production
+    needs: docker
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/jiraflow
+
+            # Save current image tag for rollback
+            PREVIOUS_IMAGE=$(docker inspect --format='{{index .Image}}' jiraflow-app-1 2>/dev/null || echo "")
+
+            # Pull latest image for the app service only
+            docker compose -f deployments/docker-compose.yml pull app
+
+            # Rolling restart — zero-downtime for stateless app
+            docker compose -f deployments/docker-compose.yml up -d --no-deps --force-recreate app
+
+            # Wait for health check to pass (up to 60s)
+            echo "Waiting for health check..."
+            for i in $(seq 1 12); do
+              if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+                echo "Health check passed"
+                break
+              fi
+              if [ "$i" -eq 12 ]; then
+                echo "Health check failed — rolling back"
+                if [ -n "$PREVIOUS_IMAGE" ]; then
+                  docker compose -f deployments/docker-compose.yml up -d --no-deps --force-recreate app
+                fi
+                exit 1
+              fi
+              sleep 5
+            done
+
+            # Smoke tests
+            curl -sf http://localhost:8080/health || exit 1
+            curl -sf http://localhost:8080/ready || true
+
+            # Reload nginx in case config changed
+            docker compose -f deployments/docker-compose.yml exec -T nginx nginx -s reload || true
+
+            # Remove dangling images to free disk
+            docker image prune -f
+
+            echo "Deploy complete: $(date)"

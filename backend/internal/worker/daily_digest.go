@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jira-backend/jiraflow-backend/internal/entity"
 	emailpkg "github.com/jira-backend/jiraflow-backend/internal/infrastructure/email"
 	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
-	"github.com/jira-backend/jiraflow-backend/internal/entity"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 )
 
@@ -49,40 +49,49 @@ func (w *DailyDigestWorker) Run(ctx context.Context, atHourUTC int) {
 
 func (w *DailyDigestWorker) send(ctx context.Context) {
 	isActive := true
-	users, _, err := w.userRepo.List(ctx, &entity.UserFilter{
-		Filter:   entity.Filter{Limit: 10000},
-		IsActive: &isActive,
-	})
-	if err != nil {
-		w.log.Error(ctx, "daily digest: list users", logger.SafeString("err", err.Error()))
-		return
-	}
-
 	unread := true
 	sent := 0
-	for _, u := range users {
-		if u.Email == "" {
-			continue
-		}
-		notifs, _, err := w.notifRepo.ListByUser(ctx, u.ID, &entity.NotificationFilter{
-			Filter: entity.Filter{Limit: 50},
-			Unread: &unread,
+	const pageSize = 100
+
+	// Paginate users to avoid loading everyone into memory at once.
+	for page := 1; ; page++ {
+		users, total, err := w.userRepo.List(ctx, &entity.UserFilter{
+			Filter:   entity.Filter{Limit: pageSize, Page: page},
+			IsActive: &isActive,
 		})
-		if err != nil || len(notifs) == 0 {
-			continue
+		if err != nil {
+			w.log.Error(ctx, "daily digest: list users", logger.SafeString("err", err.Error()))
+			break
 		}
 
-		subject := fmt.Sprintf("Your JiraFlow digest — %d unread notifications", len(notifs))
-		body := buildDigestBody(u.FullName, notifs)
+		for _, u := range users {
+			if u.Email == "" {
+				continue
+			}
+			notifs, _, err := w.notifRepo.ListByUser(ctx, u.ID, &entity.NotificationFilter{
+				Filter: entity.Filter{Limit: 50},
+				Unread: &unread,
+			})
+			if err != nil || len(notifs) == 0 {
+				continue
+			}
 
-		if err := w.emailSender.SendRaw(ctx, []string{u.Email}, subject, body); err != nil {
-			w.log.Error(ctx, "daily digest: send email",
-				logger.String("user_id", u.ID),
-				logger.SafeString("err", err.Error()),
-			)
-			continue
+			subject := fmt.Sprintf("Your JiraFlow digest — %d unread notifications", len(notifs))
+			body := buildDigestBody(u.FullName, notifs)
+
+			if err := w.emailSender.SendRaw(ctx, []string{u.Email}, subject, body); err != nil {
+				w.log.Error(ctx, "daily digest: send email",
+					logger.String("user_id", u.ID),
+					logger.SafeString("err", err.Error()),
+				)
+				continue
+			}
+			sent++
 		}
-		sent++
+
+		if page*pageSize >= total || len(users) < pageSize {
+			break
+		}
 	}
 
 	w.log.Info(ctx, fmt.Sprintf("daily digest: sent to %d users", sent))

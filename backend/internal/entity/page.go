@@ -7,6 +7,7 @@ type Page struct {
 	SpaceID        string         `json:"space_id"`
 	ParentID       *string        `json:"parent_id,omitempty"`
 	Title          string         `json:"title"`
+	Icon           string         `json:"icon"`
 	Content        map[string]any `json:"content"`
 	ContentText    string         `json:"content_text"`
 	AuthorID       string         `json:"author_id"`
@@ -28,6 +29,7 @@ type PageTree struct {
 	ID       string     `json:"id"`
 	ParentID *string    `json:"parent_id,omitempty"`
 	Title    string     `json:"title"`
+	Icon     string     `json:"icon"`
 	Position int        `json:"position"`
 	Status   string     `json:"status"`
 	Children []PageTree `json:"children,omitempty"`
@@ -44,6 +46,7 @@ type CreatePageReq struct {
 
 type UpdatePageReq struct {
 	Title       *string        `json:"title"        validate:"omitempty,min=1,max=500"`
+	Icon        *string        `json:"icon"         validate:"omitempty,max=10"`
 	Content     map[string]any `json:"content"`
 	ContentText *string        `json:"content_text"`
 	Status      *string        `json:"status"       validate:"omitempty,oneof=draft published"`

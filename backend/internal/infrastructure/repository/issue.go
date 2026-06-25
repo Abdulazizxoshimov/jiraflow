@@ -28,6 +28,7 @@ type IssueRepository interface {
 	CreateHistory(ctx context.Context, h *entity.IssueHistory) error
 	ListHistory(ctx context.Context, issueID string, filter *entity.Filter) ([]*entity.IssueHistory, int, error)
 
+	BulkCreate(ctx context.Context, issues []*entity.Issue) error
 	BulkUpdatePositions(ctx context.Context, items []entity.IssuePositionItem) error
 	BulkUpdate(ctx context.Context, req *entity.BulkUpdateIssueReq) ([]string, error)
 	BulkDelete(ctx context.Context, issueIDs []string) error

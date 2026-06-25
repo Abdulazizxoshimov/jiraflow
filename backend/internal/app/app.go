@@ -32,6 +32,10 @@ import (
 )
 
 func Run(cfg *config.Config) error {
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+
 	// Gin logs → stdout (terminal). Release mode in production.
 	gin.DefaultWriter = os.Stdout
 	gin.DefaultErrorWriter = os.Stderr
@@ -78,6 +82,11 @@ func Run(cfg *config.Config) error {
 	}
 	defer pg.DB.Close()
 
+	if err := postgres.RunMigrations(cfg.Postgres, "migrations"); err != nil {
+		return fmt.Errorf("migrations: %w", err)
+	}
+	log.Info(context.Background(), "migrations applied")
+
 	cache, err := redis.New(cfg.Redis)
 	if err != nil {
 		return fmt.Errorf("redis: %w", err)
@@ -85,15 +94,30 @@ func Run(cfg *config.Config) error {
 
 	minioClient, err := minio.New(cfg.Minio)
 	if err != nil {
-		return fmt.Errorf("minio: %w", err)
-	}
-	if err := minioClient.EnsureBucket(context.Background()); err != nil {
-		return fmt.Errorf("minio bucket: %w", err)
+		log.Warn(context.Background(), "minio unavailable — file uploads disabled", logger.SafeString("err", err.Error()))
+		minioClient = minio.NewNop()
+	} else if err := minioClient.EnsureBucket(context.Background()); err != nil {
+		log.Warn(context.Background(), "minio bucket check failed — file uploads disabled", logger.SafeString("err", err.Error()))
+		minioClient = minio.NewNop()
 	}
 
-	directSender, err := email.New(cfg.Email, log)
-	if err != nil {
-		return fmt.Errorf("email: %w", err)
+	var directSender email.Sender
+	if cfg.Email.Enabled {
+		directSender, err = email.New(cfg.Email, log)
+		if err != nil {
+			return fmt.Errorf("email: %w", err)
+		}
+		if pingErr := email.Ping(cfg.Email); pingErr != nil {
+			log.Warn(context.Background(), "smtp unreachable at startup — emails will fail until fixed",
+				logger.SafeString("err", pingErr.Error()),
+				logger.String("host", cfg.Email.Host),
+			)
+		} else {
+			log.Info(context.Background(), "smtp ping ok", logger.String("host", cfg.Email.Host))
+		}
+	} else {
+		log.Warn(context.Background(), "email disabled (EMAIL_ENABLED=false) — all email sends will be no-ops")
+		directSender = email.NewNopSender()
 	}
 
 	mq, err := rabbitmq.New(cfg.RabbitMQ.URL)
@@ -123,7 +147,7 @@ func Run(cfg *config.Config) error {
 		log,
 	)
 
-	enforcer, err := casbin.NewEnforcer("configs/rbac_model.conf", "configs/rbac_policy.csv")
+	enforcer, err := casbin.NewEnforcer("internal/pkg/casbin/model.conf", "internal/pkg/casbin/policy.csv")
 	if err != nil {
 		log.Warn(context.Background(), "casbin enforcer not loaded, RBAC disabled")
 		enforcer = nil
@@ -140,6 +164,7 @@ func Run(cfg *config.Config) error {
 		TokenMaker:            tokenMaker,
 		Hasher:                hasher.New(12),
 		Minio:                 minioClient,
+		Cache:                 cache,
 		Log:                   log,
 		Hub:                   hub,
 		EmailSender:           emailSender,
@@ -148,6 +173,7 @@ func Run(cfg *config.Config) error {
 		GoogleClientSecret:    cfg.OAuth.GoogleClientSecret,
 		GoogleRedirectURL:     cfg.OAuth.GoogleRedirectURL,
 		TelegramBotToken:      cfg.Telegram.BotToken,
+		TelegramBotUsername:   cfg.Telegram.BotUsername,
 		TelegramWebhookURL:    cfg.Telegram.WebhookURL,
 		TelegramWebhookSecret: cfg.Telegram.WebhookSecret,
 	})
@@ -155,66 +181,68 @@ func Run(cfg *config.Config) error {
 	// ── Handler ───────────────────────────────────────────────────────────────
 
 	h := &handlers.Handler{
-		Auth:          uc.Auth,
-		User:          uc.User,
-		Project:       uc.Project,
-		ProjectMember: uc.ProjectMember,
-		Invite:        uc.Invite,
-		Workflow:      uc.Workflow,
-		Sprint:        uc.Sprint,
-		Issue:         uc.Issue,
-		IssueLink:     uc.IssueLink,
-		Worklog:       uc.Worklog,
-		Component:     uc.Component,
-		Version:       uc.Version,
-		Label:         uc.Label,
-		CustomField:   uc.CustomField,
-		Board:         uc.Board,
-		Comment:       uc.Comment,
-		Attachment:    uc.Attachment,
-		File:          uc.File,
-		Space:           uc.Space,
-		Page:            uc.Page,
-		PageVersion:     uc.PageVersion,
-		PageTag:         uc.PageTag,
-		PageView:        uc.PageView,
-		PageTemplate:    uc.PageTemplate,
-		PageRestriction: uc.PageRestriction,
-		PageExport:      uc.PageExport,
-		InlineComment:   uc.InlineComment,
-		Favorite:        uc.Favorite,
-		Notification:    uc.Notification,
-		Search:          uc.Search,
-		Audit:           uc.Audit,
-		Hub:             hub,
-		IssueAssignee:   uc.IssueAssignee,
-		PageReaction:    uc.PageReaction,
-		Webhook:         uc.Webhook,
-		PageLock:        uc.PageLock,
-		PageMacro:       uc.PageMacro,
-		IssuePageLink:    uc.IssuePageLink,
-		ActivityFeed:     uc.ActivityFeed,
-		OAuth:            uc.OAuth,
-		APIKey:           uc.APIKey,
-		PermissionScheme: uc.PermissionScheme,
-		DataImport:       uc.DataImport,
-		IssueVote:           uc.IssueVote,
-		BlogPost:            uc.BlogPost,
-		SavedFilter:         uc.SavedFilter,
-		SpaceExport:         uc.SpaceExport,
-		SpaceCategory:       uc.SpaceCategory,
-		ContentProperty:     uc.ContentProperty,
-		Blueprint:           uc.Blueprint,
-		IssueType:           uc.IssueType,
-		NotificationScheme:  uc.NotificationScheme,
-		ProjectTemplate:     uc.ProjectTemplate,
-		FieldConfiguration:  uc.FieldConfiguration,
-		SecurityScheme:          uc.SecurityScheme,
-		Automation:              uc.Automation,
-		Telegram:                uc.Telegram,
-		GitHub:                  uc.GitHub,
-		TelegramWebhookSecret:   cfg.Telegram.WebhookSecret,
-		GitHubWebhookSecret:     cfg.GitHub.WebhookSecret,
+		Auth:                  uc.Auth,
+		User:                  uc.User,
+		Project:               uc.Project,
+		ProjectMember:         uc.ProjectMember,
+		Invite:                uc.Invite,
+		Workflow:              uc.Workflow,
+		Sprint:                uc.Sprint,
+		Issue:                 uc.Issue,
+		IssueLink:             uc.IssueLink,
+		Worklog:               uc.Worklog,
+		Component:             uc.Component,
+		Version:               uc.Version,
+		Label:                 uc.Label,
+		CustomField:           uc.CustomField,
+		Board:                 uc.Board,
+		Comment:               uc.Comment,
+		Attachment:            uc.Attachment,
+		File:                  uc.File,
+		Space:                 uc.Space,
+		Page:                  uc.Page,
+		PageVersion:           uc.PageVersion,
+		PageTag:               uc.PageTag,
+		PageView:              uc.PageView,
+		PageTemplate:          uc.PageTemplate,
+		PageRestriction:       uc.PageRestriction,
+		PageExport:            uc.PageExport,
+		InlineComment:         uc.InlineComment,
+		Favorite:              uc.Favorite,
+		Notification:          uc.Notification,
+		Search:                uc.Search,
+		Audit:                 uc.Audit,
+		Hub:                   hub,
+		IssueAssignee:         uc.IssueAssignee,
+		PageReaction:          uc.PageReaction,
+		Webhook:               uc.Webhook,
+		PageLock:              uc.PageLock,
+		PageMacro:             uc.PageMacro,
+		IssuePageLink:         uc.IssuePageLink,
+		ActivityFeed:          uc.ActivityFeed,
+		OAuth:                 uc.OAuth,
+		APIKey:                uc.APIKey,
+		PermissionScheme:      uc.PermissionScheme,
+		DataImport:            uc.DataImport,
+		IssueVote:             uc.IssueVote,
+		BlogPost:              uc.BlogPost,
+		SavedFilter:           uc.SavedFilter,
+		SpaceExport:           uc.SpaceExport,
+		SpaceCategory:         uc.SpaceCategory,
+		ContentProperty:       uc.ContentProperty,
+		Blueprint:             uc.Blueprint,
+		IssueType:             uc.IssueType,
+		NotificationScheme:    uc.NotificationScheme,
+		ProjectTemplate:       uc.ProjectTemplate,
+		FieldConfiguration:    uc.FieldConfiguration,
+		SecurityScheme:        uc.SecurityScheme,
+		Automation:            uc.Automation,
+		Telegram:              uc.Telegram,
+		GitHub:                uc.GitHub,
+		TelegramWebhookSecret: cfg.Telegram.WebhookSecret,
+		GitHubWebhookSecret:   cfg.GitHub.WebhookSecret,
+		AllowOpenRegistration: cfg.App.AllowOpenRegistration,
+		FrontendBaseURL:       cfg.App.FrontendBaseURL,
 	}
 
 	// ── Background workers ────────────────────────────────────────────────────
@@ -232,7 +260,33 @@ func Run(cfg *config.Config) error {
 
 	// ── Server ────────────────────────────────────────────────────────────────
 
-	router := api.NewRouter(h, tokenMaker, enforcer, log)
+	readyFn := func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := pg.DB.Ping(ctx); err != nil {
+			return fmt.Errorf("postgres: %w", err)
+		}
+		if err := cache.Ping(ctx); err != nil {
+			return fmt.Errorf("redis: %w", err)
+		}
+		return nil
+	}
+
+	if cfg.Telegram.BotToken != "" && cfg.Telegram.WebhookURL != "" {
+		go func() {
+			if err := uc.Telegram.SetupWebhook(context.Background()); err != nil {
+				log.Warn(context.Background(), "telegram: webhook setup failed", logger.SafeString("err", err.Error()))
+			} else {
+				log.Info(context.Background(), "telegram: webhook registered", logger.String("url", cfg.Telegram.WebhookURL))
+			}
+		}()
+	} else if cfg.Telegram.BotToken != "" {
+		// No public URL — use long-polling (local development mode)
+		log.Info(context.Background(), "telegram: no webhook URL — starting polling mode (local dev)")
+		go uc.Telegram.StartPolling(workerCtx)
+	}
+
+	router := api.NewRouter(h, tokenMaker, enforcer, log, readyFn, store.Audit)
 	srv := api.NewServer(":"+cfg.App.Port, router)
 
 	quit := make(chan os.Signal, 1)
@@ -250,6 +304,8 @@ func Run(cfg *config.Config) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	hub.Stop()
 
 	if err := srv.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server shutdown: %w", err)

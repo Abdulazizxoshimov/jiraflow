@@ -1,105 +1,481 @@
-# ─── Roles ────────────────────────────────────────────────────────────────────
+# ─── Roles (inheritance) ──────────────────────────────────────────────────────
 # admin inherits member, member inherits viewer
 g, admin,  member
 g, member, viewer
 
 # ─── Public (unauthorized) ────────────────────────────────────────────────────
-p, unauthorized, /api/v1/auth/login,    POST
-p, unauthorized, /api/v1/auth/register, POST
-p, unauthorized, /api/v1/auth/refresh,  POST
+p, unauthorized, /api/v1/auth/login,           POST
+p, unauthorized, /api/v1/auth/register,        POST
+p, unauthorized, /api/v1/auth/refresh,         POST
+p, unauthorized, /api/v1/auth/forgot-password, POST
+p, unauthorized, /api/v1/auth/reset-password,  POST
+p, unauthorized, /api/v1/auth/google,          GET
+p, unauthorized, /api/v1/auth/google/callback, GET
 
 # ─── viewer (read-only) ───────────────────────────────────────────────────────
-p, viewer, /api/v1/projects,              GET
-p, viewer, /api/v1/projects/:id,          GET
-p, viewer, /api/v1/projects/:id/members,  GET
 
-p, viewer, /api/v1/issues,                GET
-p, viewer, /api/v1/issues/:id,            GET
-p, viewer, /api/v1/issues/:id/comments,   GET
-p, viewer, /api/v1/issues/:id/history,    GET
-p, viewer, /api/v1/issues/:id/watchers,   GET
+# Auth self-service
+p, viewer, /api/v1/auth/logout,                    POST
+p, viewer, /api/v1/auth/me,                        GET
+p, viewer, /api/v1/auth/telegram/status,           GET
+p, viewer, /api/v1/auth/providers,                 GET
+p, viewer, /api/v1/auth/google/link,               GET
+p, viewer, /api/v1/auth/google/link/callback,      GET
 
-p, viewer, /api/v1/sprints,               GET
-p, viewer, /api/v1/sprints/:id,           GET
+# Users (read)
+p, viewer, /api/v1/users,                          GET
+p, viewer, /api/v1/users/me,                       GET
+p, viewer, /api/v1/users/:id,                      GET
 
-p, viewer, /api/v1/boards,                GET
-p, viewer, /api/v1/boards/:id,            GET
-p, viewer, /api/v1/boards/:id/columns,    GET
+# Projects (read)
+p, viewer, /api/v1/projects,                       GET
+p, viewer, /api/v1/projects/:id,                   GET
+p, viewer, /api/v1/projects/:id/members,            GET
+p, viewer, /api/v1/projects/:id/sprints,            GET
+p, viewer, /api/v1/projects/:id/components,         GET
+p, viewer, /api/v1/projects/:id/versions,           GET
+p, viewer, /api/v1/projects/:id/boards,             GET
+p, viewer, /api/v1/projects/:id/labels,             GET
+p, viewer, /api/v1/projects/:id/custom-fields,      GET
+p, viewer, /api/v1/projects/:id/automation-rules,   GET
+p, viewer, /api/v1/projects/:id/velocity,           GET
+p, viewer, /api/v1/projects/:id/cfd,                GET
+p, viewer, /api/v1/projects/:id/roadmap,            GET
+p, viewer, /api/v1/projects/:id/backlog,            GET
+p, viewer, /api/v1/projects/:id/space,              GET
+p, viewer, /api/v1/projects/:id/dashboard,          GET
+p, viewer, /api/v1/projects/:id/gantt,              GET
+p, viewer, /api/v1/projects/:id/sprint-planning,    GET
+p, viewer, /api/v1/projects/:id/release-plan,       GET
+p, viewer, /api/v1/projects/:id/github,             GET
+p, viewer, /api/v1/projects/:id/permission-scheme,  GET
+p, viewer, /api/v1/projects/:id/issue-type-scheme,  GET
+p, viewer, /api/v1/projects/:id/webhooks,           GET
 
-p, viewer, /api/v1/spaces,                GET
-p, viewer, /api/v1/spaces/:id,            GET
-p, viewer, /api/v1/spaces/:id/pages,      GET
-p, viewer, /api/v1/pages/:id,             GET
+# Workflows (read)
+p, viewer, /api/v1/workflows,                       GET
+p, viewer, /api/v1/workflows/:id,                   GET
 
-p, viewer, /api/v1/labels,                GET
-p, viewer, /api/v1/search,                GET
-p, viewer, /api/v1/notifications,         GET
+# Sprints (read)
+p, viewer, /api/v1/sprints/:id,                     GET
+p, viewer, /api/v1/sprints/:id/report,              GET
+p, viewer, /api/v1/sprints/:id/burndown,            GET
+p, viewer, /api/v1/sprints/:id/burnup,              GET
+p, viewer, /api/v1/sprints/:id/capacity,            GET
+p, viewer, /api/v1/sprints/:id/impediments,         GET
 
-p, viewer, /api/v1/users/me,              GET
-p, viewer, /api/v1/users/:id,             GET
+# Components & Versions (read)
+p, viewer, /api/v1/components/:id,                  GET
+p, viewer, /api/v1/versions/:id,                    GET
+p, viewer, /api/v1/versions/:id/release-notes,      GET
 
-# ─── member (read + write on issues/comments/sprints) ────────────────────────
-p, member, /api/v1/issues,               POST
-p, member, /api/v1/issues/:id,           PUT
-p, member, /api/v1/issues/:id,           PATCH
-p, member, /api/v1/issues/:id/comments,  POST
-p, member, /api/v1/issues/:id/watchers,  POST
-p, member, /api/v1/issues/:id/watchers,  DELETE
-p, member, /api/v1/issues/:id/links,     POST
-p, member, /api/v1/issues/:id/links,     DELETE
-p, member, /api/v1/issues/:id/transition, POST
-p, member, /api/v1/issues/:id/attachments, POST
+# Issues (read)
+p, viewer, /api/v1/issues,                          GET
+p, viewer, /api/v1/issues/:id,                      GET
+p, viewer, /api/v1/issues/key/:key,                 GET
+p, viewer, /api/v1/issues/:id/history,              GET
+p, viewer, /api/v1/issues/:id/watchers,             GET
+p, viewer, /api/v1/issues/:id/links,                GET
+p, viewer, /api/v1/issues/:id/worklogs,             GET
+p, viewer, /api/v1/issues/:id/time-summary,         GET
+p, viewer, /api/v1/issues/:id/epic-progress,        GET
+p, viewer, /api/v1/issues/:id/assignees,            GET
+p, viewer, /api/v1/issues/:id/page-links,           GET
+p, viewer, /api/v1/issues/:id/votes,                GET
+p, viewer, /api/v1/issues/:id/commits,              GET
+p, viewer, /api/v1/issues/:id/pull-requests,        GET
+p, viewer, /api/v1/issues/:id/properties,           GET
+p, viewer, /api/v1/issues/:id/properties/:key,      GET
 
-p, member, /api/v1/comments/:id,         PUT
-p, member, /api/v1/comments/:id,         DELETE
+# Comments (read)
+p, viewer, /api/v1/:parent_type/:parent_id/comments, GET
+p, viewer, /api/v1/comments/:id,                    GET
+p, viewer, /api/v1/comments/:id/reactions,          GET
 
-p, member, /api/v1/sprints,              POST
-p, member, /api/v1/sprints/:id,          PUT
-p, member, /api/v1/sprints/:id,          PATCH
+# Attachments (read)
+p, viewer, /api/v1/:parent_type/:parent_id/attachments, GET
+p, viewer, /api/v1/attachments/:id,                 GET
+p, viewer, /api/v1/attachments/:id/url,             GET
 
-p, member, /api/v1/pages,               POST
-p, member, /api/v1/pages/:id,           PUT
-p, member, /api/v1/pages/:id,           DELETE
+# Boards (read)
+p, viewer, /api/v1/boards/:id,                      GET
+p, viewer, /api/v1/boards/:id/swimlanes,            GET
 
-p, member, /api/v1/files,               POST
-p, member, /api/v1/invites,             POST
+# Labels (read)
+p, viewer, /api/v1/labels/:id,                      GET
 
-p, member, /api/v1/notifications/:id,   PATCH
-p, member, /api/v1/users/me,            PUT
-p, member, /api/v1/users/me/password,   PUT
+# Custom fields (read)
+p, viewer, /api/v1/custom-fields/:id,               GET
 
-# ─── admin (full control) ─────────────────────────────────────────────────────
-p, admin, /api/v1/projects,              POST
-p, admin, /api/v1/projects/:id,          PUT
-p, admin, /api/v1/projects/:id,          DELETE
-p, admin, /api/v1/projects/:id/members,  POST
-p, admin, /api/v1/projects/:id/members,  DELETE
+# Spaces (read)
+p, viewer, /api/v1/spaces,                          GET
+p, viewer, /api/v1/spaces/:id,                      GET
+p, viewer, /api/v1/spaces/:id/members,              GET
+p, viewer, /api/v1/spaces/:id/statistics,           GET
+p, viewer, /api/v1/spaces/:id/pages/tree,           GET
+p, viewer, /api/v1/spaces/:id/page-tags,            GET
+p, viewer, /api/v1/spaces/:id/blog-posts,           GET
+p, viewer, /api/v1/spaces/:id/export,               GET
+p, viewer, /api/v1/spaces/:id/export/:export_id,    GET
+p, viewer, /api/v1/spaces/:id/webhooks,             GET
 
-p, admin, /api/v1/boards,               POST
-p, admin, /api/v1/boards/:id,           PUT
-p, admin, /api/v1/boards/:id,           DELETE
-p, admin, /api/v1/boards/:id/columns,   POST
-p, admin, /api/v1/boards/:id/columns,   PUT
-p, admin, /api/v1/boards/:id/columns,   DELETE
+# Pages (read)
+p, viewer, /api/v1/pages,                           GET
+p, viewer, /api/v1/pages/:id,                       GET
+p, viewer, /api/v1/pages/:id/versions,              GET
+p, viewer, /api/v1/pages/:id/versions/:version,     GET
+p, viewer, /api/v1/pages/:id/versions/:version/diff/:v2, GET
+p, viewer, /api/v1/pages/:id/tags,                  GET
+p, viewer, /api/v1/pages/:id/analytics,             GET
+p, viewer, /api/v1/pages/:id/inline-comments,       GET
+p, viewer, /api/v1/pages/:id/restrictions,          GET
+p, viewer, /api/v1/pages/:id/access,               GET
+p, viewer, /api/v1/pages/:id/export/html,           GET
+p, viewer, /api/v1/pages/:id/export/pdf,            GET
+p, viewer, /api/v1/pages/:id/export/md,             GET
+p, viewer, /api/v1/pages/:id/export/docx,           GET
+p, viewer, /api/v1/pages/:id/reactions,             GET
+p, viewer, /api/v1/pages/:id/reactions/:emoji/users, GET
+p, viewer, /api/v1/pages/:id/lock,                  GET
+p, viewer, /api/v1/pages/:id/macros,               GET
+p, viewer, /api/v1/pages/:id/issue-links,           GET
+p, viewer, /api/v1/pages/:id/watchers,              GET
+p, viewer, /api/v1/pages/:id/properties,            GET
+p, viewer, /api/v1/pages/:id/properties/:key,       GET
 
-p, admin, /api/v1/spaces,               POST
-p, admin, /api/v1/spaces/:id,           PUT
-p, admin, /api/v1/spaces/:id,           DELETE
-p, admin, /api/v1/spaces/:id/members,   POST
-p, admin, /api/v1/spaces/:id/members,   DELETE
+# Inline comments (read)
+p, viewer, /api/v1/inline-comments/:id,             GET
 
-p, admin, /api/v1/workflows,            POST
-p, admin, /api/v1/workflows/:id,        PUT
-p, admin, /api/v1/workflows/:id,        DELETE
-p, admin, /api/v1/workflows/:id/statuses,    POST
-p, admin, /api/v1/workflows/:id/transitions, POST
+# Blog posts (read)
+p, viewer, /api/v1/blog-posts/:id,                  GET
 
-p, admin, /api/v1/labels,               POST
-p, admin, /api/v1/labels/:id,           PUT
-p, admin, /api/v1/labels/:id,           DELETE
+# Page tags (read)
+p, viewer, /api/v1/page-tags/:id,                   GET
+p, viewer, /api/v1/page-tags/:id/pages,             GET
 
-p, admin, /api/v1/custom-fields,        POST
-p, admin, /api/v1/custom-fields/:id,    PUT
-p, admin, /api/v1/custom-fields/:id,    DELETE
+# Page templates (read)
+p, viewer, /api/v1/page-templates,                  GET
+p, viewer, /api/v1/page-templates/:id,              GET
 
-p, admin, /api/v1/audit,               GET
+# Page versions (read)
+p, viewer, /api/v1/page-versions/:id,               GET
+
+# Search & Activity
+p, viewer, /api/v1/search,                          GET
+p, viewer, /api/v1/search/suggestions,              GET
+p, viewer, /api/v1/activity,                        GET
+p, viewer, /api/v1/recently-visited,                GET
+
+# Notifications (own read)
+p, viewer, /api/v1/notifications,                   GET
+p, viewer, /api/v1/notifications/unread-count,      GET
+p, viewer, /api/v1/notifications/preferences,       GET
+
+# Favorites
+p, viewer, /api/v1/favorites,                       GET
+p, viewer, /api/v1/favorites/check,                 GET
+
+# Saved filters (own read)
+p, viewer, /api/v1/saved-filters,                   GET
+p, viewer, /api/v1/saved-filters/:id,               GET
+
+# API keys (own read)
+p, viewer, /api/v1/api-keys,                        GET
+
+# Issue types, schemes, blueprints (read — needed by UI)
+p, viewer, /api/v1/issue-types,                     GET
+p, viewer, /api/v1/issue-types/:id,                 GET
+p, viewer, /api/v1/issue-type-schemes,              GET
+p, viewer, /api/v1/issue-type-schemes/:id,          GET
+p, viewer, /api/v1/project-templates,               GET
+p, viewer, /api/v1/project-templates/:id,           GET
+p, viewer, /api/v1/blueprints,                      GET
+p, viewer, /api/v1/blueprints/:id,                  GET
+p, viewer, /api/v1/space-categories,                GET
+p, viewer, /api/v1/space-categories/:id,            GET
+
+# WebSocket
+p, viewer, /api/v1/ws,                              GET
+
+# ─── member (write content: issues, comments, pages, sprints, etc.) ──────────
+
+# Auth self-service (write)
+p, member, /api/v1/auth/telegram/verify,             POST
+p, member, /api/v1/auth/telegram/disconnect,        DELETE
+p, member, /api/v1/auth/providers/:provider,        DELETE
+
+# Users (own profile only — members cannot update arbitrary user IDs)
+p, member, /api/v1/users/me,                        PUT
+p, member, /api/v1/users/me/password,               PUT
+p, member, /api/v1/users/me/avatar,                 POST
+
+# Issues (write)
+p, member, /api/v1/issues,                          POST
+p, member, /api/v1/issues/reorder,                  PUT
+p, member, /api/v1/issues/bulk,                     PUT
+p, member, /api/v1/issues/bulk,                     DELETE
+p, member, /api/v1/issues/:id,                      PUT
+p, member, /api/v1/issues/:id,                      DELETE
+p, member, /api/v1/issues/:id/transition,           POST
+p, member, /api/v1/issues/:id/clone,               POST
+p, member, /api/v1/issues/:id/rank,                PUT
+p, member, /api/v1/issues/:id/move,                PUT
+p, member, /api/v1/issues/:id/links,               POST
+p, member, /api/v1/issues/links/:id,               DELETE
+p, member, /api/v1/issues/:id/watchers,            POST
+p, member, /api/v1/issues/:id/watchers,            DELETE
+p, member, /api/v1/issues/:id/worklogs,            POST
+p, member, /api/v1/issues/:id/worklogs/:worklog_id, PUT
+p, member, /api/v1/issues/:id/worklogs/:worklog_id, DELETE
+p, member, /api/v1/issues/:id/estimates,           PUT
+p, member, /api/v1/issues/:id/assignees,           PUT
+p, member, /api/v1/issues/:id/assignees/:user_id,  DELETE
+p, member, /api/v1/issues/:id/page-links,          POST
+p, member, /api/v1/issues/:id/page-links/:page_id, DELETE
+p, member, /api/v1/issues/:id/votes,               POST
+p, member, /api/v1/issues/:id/properties/:key,     PUT
+p, member, /api/v1/issues/:id/properties/:key,     DELETE
+
+# Sprints (project-level write)
+p, member, /api/v1/projects/:id/sprints,            POST
+p, member, /api/v1/sprints/:id,                     PUT
+p, member, /api/v1/sprints/:id,                     DELETE
+p, member, /api/v1/sprints/:id/start,               POST
+p, member, /api/v1/sprints/:id/complete,            POST
+p, member, /api/v1/sprints/:id/issues,              POST
+p, member, /api/v1/sprints/:id/issues/:issue_id,    DELETE
+p, member, /api/v1/sprints/:id/goal,                POST
+p, member, /api/v1/projects/:id/sprint-planning,    POST
+
+# Components & Versions (write)
+p, member, /api/v1/projects/:id/components,         POST
+p, member, /api/v1/components/:id,                  PUT
+p, member, /api/v1/components/:id,                  DELETE
+p, member, /api/v1/projects/:id/versions,           POST
+p, member, /api/v1/versions/:id,                    PUT
+p, member, /api/v1/versions/:id,                    DELETE
+p, member, /api/v1/versions/:id/release,            POST
+p, member, /api/v1/versions/:id/archive,            POST
+
+# Comments (write)
+p, member, /api/v1/:parent_type/:parent_id/comments, POST
+p, member, /api/v1/comments/:id,                    PUT
+p, member, /api/v1/comments/:id,                    DELETE
+p, member, /api/v1/comments/:id/reactions,          POST
+
+# Attachments (write)
+p, member, /api/v1/:parent_type/:parent_id/attachments, POST
+p, member, /api/v1/attachments/:id,                 DELETE
+
+# Pages (write)
+p, member, /api/v1/spaces/:id/pages,               POST
+p, member, /api/v1/pages/:id,                       PUT
+p, member, /api/v1/pages/:id,                       DELETE
+p, member, /api/v1/pages/:id/move,                  PUT
+p, member, /api/v1/pages/:id/watch,                 POST
+p, member, /api/v1/pages/:id/watch,                 DELETE
+p, member, /api/v1/pages/:id/tags,                  PUT
+p, member, /api/v1/pages/:id/view,                  POST
+p, member, /api/v1/pages/:id/inline-comments,       POST
+p, member, /api/v1/pages/:id/restrictions,          PUT
+p, member, /api/v1/pages/:id/restrictions,          DELETE
+p, member, /api/v1/pages/:id/copy,                  POST
+p, member, /api/v1/pages/:id/reactions,             POST
+p, member, /api/v1/pages/:id/lock,                  POST
+p, member, /api/v1/pages/:id/lock,                  DELETE
+p, member, /api/v1/pages/:id/lock,                  PUT
+p, member, /api/v1/pages/:id/macros,               POST
+p, member, /api/v1/pages/:id/issue-links,           GET
+p, member, /api/v1/pages/:id/properties/:key,       PUT
+p, member, /api/v1/pages/:id/properties/:key,       DELETE
+p, member, /api/v1/page-macros/:id,                DELETE
+
+# Inline comments (write)
+p, member, /api/v1/inline-comments/:id,             PUT
+p, member, /api/v1/inline-comments/:id/resolve,     POST
+p, member, /api/v1/inline-comments/:id/unresolve,   POST
+p, member, /api/v1/inline-comments/:id,             DELETE
+
+# Blog posts (write)
+p, member, /api/v1/spaces/:id/blog-posts,           POST
+p, member, /api/v1/blog-posts/:id,                  PUT
+p, member, /api/v1/blog-posts/:id,                  DELETE
+p, member, /api/v1/blog-posts/:id/publish,          POST
+p, member, /api/v1/blog-posts/:id/unpublish,        POST
+
+# Page tags (write)
+p, member, /api/v1/spaces/:id/page-tags,            POST
+p, member, /api/v1/page-tags/:id,                   PUT
+p, member, /api/v1/page-tags/:id,                   DELETE
+
+# Files
+p, member, /api/v1/files/upload,                    POST
+p, member, /api/v1/files/presign,                   GET
+
+# Notifications (write)
+p, member, /api/v1/notifications/mark-read,         POST
+p, member, /api/v1/notifications/mark-all-read,     POST
+p, member, /api/v1/notifications/:id,               DELETE
+p, member, /api/v1/notifications/preferences,       PUT
+
+# Favorites & filters (own write)
+p, member, /api/v1/favorites,                       POST
+p, member, /api/v1/favorites,                       DELETE
+p, member, /api/v1/saved-filters,                   POST
+p, member, /api/v1/saved-filters/:id,               PUT
+p, member, /api/v1/saved-filters/:id,               DELETE
+
+# API keys (own create/revoke)
+p, member, /api/v1/api-keys,                        POST
+p, member, /api/v1/api-keys/:id,                    DELETE
+
+# Page templates (write)
+p, member, /api/v1/page-templates,                  POST
+p, member, /api/v1/page-templates/:id,              PUT
+p, member, /api/v1/page-templates/:id,              DELETE
+
+# Blueprints (create page from blueprint)
+p, member, /api/v1/blueprints/:id/create,           POST
+
+# Space export
+p, member, /api/v1/spaces/:id/export,               POST
+
+# ─── admin (system management) ────────────────────────────────────────────────
+
+# Users (full management — admin can update any user's profile)
+p, admin, /api/v1/users,                            POST
+p, admin, /api/v1/users/:id,                        PUT
+p, admin, /api/v1/users/:id,                        DELETE
+p, admin, /api/v1/users/:id/deactivate,             POST
+p, admin, /api/v1/users/:id/activate,              POST
+
+# Invites
+p, admin, /api/v1/invites,                          POST
+p, admin, /api/v1/invites,                          GET
+p, admin, /api/v1/invites/:id,                      DELETE
+
+# Projects (full management)
+p, admin, /api/v1/projects,                         POST
+p, admin, /api/v1/projects/:id,                     PUT
+p, admin, /api/v1/projects/:id,                     DELETE
+p, admin, /api/v1/projects/:id/archive,             POST
+p, admin, /api/v1/projects/:id/members,             POST
+p, admin, /api/v1/projects/:id/members/:user_id,    PUT
+p, admin, /api/v1/projects/:id/members/:user_id,    DELETE
+p, admin, /api/v1/projects/:id/github,              POST
+p, admin, /api/v1/projects/:id/github,              DELETE
+p, admin, /api/v1/projects/:id/permission-scheme,   PUT
+p, admin, /api/v1/projects/:id/labels,              POST
+p, admin, /api/v1/projects/:id/custom-fields,       POST
+p, admin, /api/v1/projects/:id/custom-fields/reorder, PUT
+p, admin, /api/v1/projects/:id/automation-rules,    POST
+p, admin, /api/v1/projects/:id/boards,              POST
+
+# Workflows (full management)
+p, admin, /api/v1/workflows,                        POST
+p, admin, /api/v1/workflows/:id,                    PUT
+p, admin, /api/v1/workflows/:id,                    DELETE
+p, admin, /api/v1/workflows/:id/statuses,           POST
+p, admin, /api/v1/workflows/statuses/:id,           PUT
+p, admin, /api/v1/workflows/statuses/:id,           DELETE
+p, admin, /api/v1/workflows/:id/transitions,        POST
+p, admin, /api/v1/workflows/transitions/:id,        DELETE
+
+# Boards (full management)
+p, admin, /api/v1/boards/:id,                       PUT
+p, admin, /api/v1/boards/:id,                       DELETE
+p, admin, /api/v1/boards/:id/columns,               POST
+p, admin, /api/v1/boards/:id/columns/reorder,       PUT
+p, admin, /api/v1/boards/:id/swimlane-type,         PUT
+p, admin, /api/v1/board-columns/:id,                PUT
+p, admin, /api/v1/board-columns/:id,                DELETE
+
+# Labels (full management)
+p, admin, /api/v1/labels/:id,                       PUT
+p, admin, /api/v1/labels/:id,                       DELETE
+
+# Custom fields (full management)
+p, admin, /api/v1/custom-fields/:id,                PUT
+p, admin, /api/v1/custom-fields/:id,                DELETE
+
+# Spaces (full management — only global admin creates spaces)
+p, admin, /api/v1/spaces,                           POST
+p, admin, /api/v1/spaces/:id,                       PUT
+p, admin, /api/v1/spaces/:id,                       DELETE
+p, admin, /api/v1/spaces/:id/members,               POST
+p, admin, /api/v1/spaces/:id/members/:user_id,      PUT
+p, admin, /api/v1/spaces/:id/members/:user_id,      DELETE
+p, admin, /api/v1/spaces/:id/archive,               POST
+p, admin, /api/v1/spaces/:id/restore,               POST
+
+# Audit logs (admin only)
+p, admin, /api/v1/audit-logs,                       GET
+p, admin, /api/v1/audit-logs/export,                GET
+
+# Webhooks (admin manage)
+p, admin, /api/v1/webhooks,                         POST
+p, admin, /api/v1/webhooks/:id,                     GET
+p, admin, /api/v1/webhooks/:id,                     PUT
+p, admin, /api/v1/webhooks/:id,                     DELETE
+p, admin, /api/v1/webhooks/:id/deliveries,          GET
+
+# Permission schemes (admin only)
+p, admin, /api/v1/permission-schemes,               GET
+p, admin, /api/v1/permission-schemes,               POST
+p, admin, /api/v1/permission-schemes/:id,           GET
+p, admin, /api/v1/permission-schemes/:id,           PUT
+p, admin, /api/v1/permission-schemes/:id,           DELETE
+p, admin, /api/v1/permission-schemes/:id/grants,    POST
+p, admin, /api/v1/permission-schemes/:id/grants/:grant_id, DELETE
+
+# Data import (admin only)
+p, admin, /api/v1/import/jira,                      POST
+p, admin, /api/v1/import/trello,                    POST
+p, admin, /api/v1/import/linear,                    POST
+p, admin, /api/v1/import/:id,                       GET
+
+# Issue types & schemes (admin manage)
+p, admin, /api/v1/issue-types,                      POST
+p, admin, /api/v1/issue-types/:id,                  DELETE
+p, admin, /api/v1/issue-type-schemes,               POST
+p, admin, /api/v1/issue-type-schemes/:id,           DELETE
+
+# Notification schemes (admin)
+p, admin, /api/v1/notification-schemes,             GET
+p, admin, /api/v1/notification-schemes,             POST
+p, admin, /api/v1/notification-schemes/:id,         GET
+p, admin, /api/v1/notification-schemes/:id,         DELETE
+
+# Field configurations (admin)
+p, admin, /api/v1/field-configurations,             GET
+p, admin, /api/v1/field-configurations,             POST
+p, admin, /api/v1/field-configurations/:id,         GET
+p, admin, /api/v1/field-configurations/:id,         DELETE
+
+# Blueprints (admin manage)
+p, admin, /api/v1/blueprints,                       POST
+p, admin, /api/v1/blueprints/:id,                   DELETE
+
+# Space categories (admin)
+p, admin, /api/v1/space-categories,                 POST
+p, admin, /api/v1/space-categories/:id,             PUT
+p, admin, /api/v1/space-categories/:id,             DELETE
+
+# Security schemes (admin)
+p, admin, /api/v1/security-schemes,                 GET
+p, admin, /api/v1/security-schemes,                 POST
+p, admin, /api/v1/security-schemes/:id,             GET
+p, admin, /api/v1/security-schemes/:id,             DELETE
+p, admin, /api/v1/security-schemes/:id/levels,      POST
+p, admin, /api/v1/security-schemes/:id/levels/:level_id, GET
+p, admin, /api/v1/security-schemes/:id/levels/:level_id, DELETE
+p, admin, /api/v1/security-schemes/:id/levels/:level_id/members,    POST
+p, admin, /api/v1/security-schemes/:id/levels/:level_id/members/:member_id, DELETE
+
+# Automation rules (admin manage)
+p, admin, /api/v1/automation-rules/:id,             GET
+p, admin, /api/v1/automation-rules/:id,             PUT
+p, admin, /api/v1/automation-rules/:id,             DELETE
+p, admin, /api/v1/automation-rules/:id/enable,      POST
+p, admin, /api/v1/automation-rules/:id/disable,     POST
+p, admin, /api/v1/automation-rules/:id/logs,        GET

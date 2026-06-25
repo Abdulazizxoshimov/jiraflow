@@ -16,19 +16,24 @@ import (
 // need authentication, not role-based access control.
 func Auth(maker token.Maker) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		raw := c.GetHeader("Authorization")
-		if raw == "" {
+		// WebSocket clients cannot send custom headers during HTTP upgrade,
+		// so we also accept the token as a ?token= query parameter.
+		var tokenStr string
+		if raw := c.GetHeader("Authorization"); raw != "" {
+			s, ok := strings.CutPrefix(raw, "Bearer ")
+			if !ok || s == "" {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"error": "invalid authorization header format",
+					"code":  "UNAUTHORIZED",
+				})
+				return
+			}
+			tokenStr = s
+		} else if q := c.Query("token"); q != "" {
+			tokenStr = q
+		} else {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "missing authorization header",
-				"code":  "UNAUTHORIZED",
-			})
-			return
-		}
-
-		tokenStr, ok := strings.CutPrefix(raw, "Bearer ")
-		if !ok || tokenStr == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid authorization header format",
 				"code":  "UNAUTHORIZED",
 			})
 			return

@@ -67,39 +67,38 @@ func (r *worklogRepo) GetByID(ctx context.Context, id string) (*entity.Worklog, 
 }
 
 func (r *worklogRepo) List(ctx context.Context, filter *entity.WorklogFilter) ([]*entity.Worklog, int, error) {
-	where := "1=1"
-	args := []any{}
-	argN := 1
-
+	cond := sq.And{}
 	if filter.IssueID != "" {
-		where += fmt.Sprintf(" AND w.issue_id = $%d", argN)
-		args = append(args, filter.IssueID)
-		argN++
+		cond = append(cond, sq.Eq{"w.issue_id": filter.IssueID})
 	}
 	if filter.UserID != "" {
-		where += fmt.Sprintf(" AND w.user_id = $%d", argN)
-		args = append(args, filter.UserID)
-		argN++
+		cond = append(cond, sq.Eq{"w.user_id": filter.UserID})
 	}
 
+	countSQL, countArgs, err := r.builder.
+		Select("COUNT(*)").From("issue_worklogs w").Where(cond).ToSql()
+	if err != nil {
+		return nil, 0, fmt.Errorf("worklogRepo.List count build: %w", err)
+	}
 	var total int
-	countQuery := `SELECT COUNT(*) FROM issue_worklogs w WHERE ` + where
-	if err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("worklogRepo.List count: %w", err)
 	}
 
-	limit := filter.GetLimit()
-	offset := filter.Offset()
-	dataQuery := fmt.Sprintf(`
-		SELECT `+worklogCols+`
-		FROM issue_worklogs w
-		JOIN users u ON u.id = w.user_id
-		WHERE %s
-		ORDER BY w.started_at DESC
-		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
-	args = append(args, limit, offset)
+	dataSQL, dataArgs, err := r.builder.
+		Select(worklogCols).
+		From("issue_worklogs w").
+		Join("users u ON u.id = w.user_id").
+		Where(cond).
+		OrderBy("w.started_at DESC").
+		Limit(uint64(filter.GetLimit())).
+		Offset(uint64(filter.Offset())).
+		ToSql()
+	if err != nil {
+		return nil, 0, fmt.Errorf("worklogRepo.List query build: %w", err)
+	}
 
-	rows, err := r.db.Query(ctx, dataQuery, args...)
+	rows, err := r.db.Query(ctx, dataSQL, dataArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("worklogRepo.List query: %w", err)
 	}

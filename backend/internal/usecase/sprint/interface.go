@@ -7,7 +7,7 @@ import (
 )
 
 type UseCase interface {
-	Create(ctx context.Context, projectID, createdBy string, s *entity.Sprint) (*entity.Sprint, error)
+	Create(ctx context.Context, projectID, createdBy string, isAdmin bool, s *entity.Sprint) (*entity.Sprint, error)
 	GetByID(ctx context.Context, id string) (*entity.Sprint, error)
 	List(ctx context.Context, projectID string, filter *entity.SprintFilter) ([]*entity.Sprint, int, error)
 	Update(ctx context.Context, id string, s *entity.Sprint) (*entity.Sprint, error)

@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	hs "github.com/jira-backend/jiraflow-backend/api/http_status"
 	"github.com/jira-backend/jiraflow-backend/api/handlers"
+	hs "github.com/jira-backend/jiraflow-backend/api/http_status"
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
 )
 
@@ -57,31 +57,38 @@ func ExportAuditLogs(h *handlers.Handler) gin.HandlerFunc {
 			hs.BadRequest(c, err.Error())
 			return
 		}
-		filter.Limit = 10000
-		filter.Page = 1
-		logs, _, err := h.Audit.List(c.Request.Context(), &filter)
-		if err != nil {
-			hs.Error(c, err)
-			return
-		}
 
 		c.Header("Content-Type", "text/csv; charset=utf-8")
 		c.Header("Content-Disposition", `attachment; filename="audit_logs.csv"`)
 
 		w := csv.NewWriter(c.Writer)
 		_ = w.Write([]string{"id", "user_id", "action", "entity_type", "entity_id", "ip_address", "created_at"})
-		for _, l := range logs {
-			_ = w.Write([]string{
-				l.ID,
-				derefStr(l.UserID),
-				l.Action,
-				derefStr(l.EntityType),
-				derefStr(l.EntityID),
-				derefStr(l.IPAddress),
-				l.CreatedAt.Format(time.RFC3339),
-			})
+
+		// Stream in pages of 500 to avoid loading the entire table into memory.
+		const pageSize = 500
+		filter.Limit = pageSize
+		for page := 1; ; page++ {
+			filter.Page = page
+			logs, total, err := h.Audit.List(c.Request.Context(), &filter)
+			if err != nil {
+				break
+			}
+			for _, l := range logs {
+				_ = w.Write([]string{
+					l.ID,
+					derefStr(l.UserID),
+					l.Action,
+					derefStr(l.EntityType),
+					derefStr(l.EntityID),
+					derefStr(l.IPAddress),
+					l.CreatedAt.Format(time.RFC3339),
+				})
+			}
+			w.Flush()
+			if page*pageSize >= total || len(logs) < pageSize {
+				break
+			}
 		}
-		w.Flush()
 	}
 }
 

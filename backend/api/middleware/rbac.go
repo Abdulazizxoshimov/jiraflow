@@ -27,23 +27,46 @@ var validRoles = map[string]struct{}{
 	"viewer": {},
 }
 
-// RBAC returns a Gin middleware that validates the JWT (when present) and
-// enforces Casbin policy before passing the request to the next handler.
+// EnforceCasbin checks Casbin policy using the role already injected into
+// context by the Auth middleware. Must be placed AFTER Auth in the chain.
+// Returns 403 when the role lacks permission for the route+method.
+func EnforceCasbin(enforcer *casbin.Enforcer, log logger.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role := c.GetString(CtxRole)
+		if role == "" {
+			role = "viewer" // safe fallback
+		}
+
+		allowed, err := enforcer.Enforce(role, c.FullPath(), c.Request.Method)
+		if err != nil {
+			log.Error(c.Request.Context(), "casbin enforce error", logger.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error", "code": "INTERNAL_ERROR"})
+			c.Abort()
+			return
+		}
+		if !allowed {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error": "access denied",
+				"code":  "FORBIDDEN",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// RBAC validates JWT and enforces Casbin in one step (kept for compatibility).
 func RBAC(enforcer *casbin.Enforcer, maker token.Maker, log logger.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		role, claims, err := extractRole(c, maker, log)
 		if err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"error": "token expired",
-					"code":  "TOKEN_EXPIRED",
-				})
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "token expired", "code": "TOKEN_EXPIRED"})
 			} else {
-				c.JSON(http.StatusUnauthorized, gin.H{
-					"error": "invalid token",
-					"code":  "TOKEN_INVALID",
-				})
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token", "code": "TOKEN_INVALID"})
 			}
 			c.Abort()
 			return
@@ -57,15 +80,11 @@ func RBAC(enforcer *casbin.Enforcer, maker token.Maker, log logger.Logger) gin.H
 			return
 		}
 		if !allowed {
-			c.JSON(http.StatusForbidden, gin.H{
-				"error": "access denied",
-				"code":  "FORBIDDEN",
-			})
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied", "code": "FORBIDDEN"})
 			c.Abort()
 			return
 		}
 
-		// Propagate identity to downstream handlers.
 		if claims != nil {
 			c.Set(CtxUserID, claims.Sub)
 			c.Set(CtxSessionID, claims.SessionID)

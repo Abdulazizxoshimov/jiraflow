@@ -32,6 +32,7 @@ type UpdateUserReq struct {
 	Color     *string `json:"color"      validate:"omitempty,len=7"`
 	Timezone  *string `json:"timezone"   validate:"omitempty,max=64"`
 	Language  *string `json:"language"   validate:"omitempty,max=8"`
+	Role      *string `json:"role"       validate:"omitempty,oneof=admin member viewer"`
 }
 
 type ChangePasswordReq struct {

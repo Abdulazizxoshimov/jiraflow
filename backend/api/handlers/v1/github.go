@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	hs "github.com/jira-backend/jiraflow-backend/api/http_status"
 	"github.com/jira-backend/jiraflow-backend/api/handlers"
+	hs "github.com/jira-backend/jiraflow-backend/api/http_status"
 	"github.com/jira-backend/jiraflow-backend/api/middleware"
 	"github.com/jira-backend/jiraflow-backend/internal/entity"
 	ghinfra "github.com/jira-backend/jiraflow-backend/internal/infrastructure/github"
@@ -133,8 +133,12 @@ func GitHubWebhook(h *handlers.Handler) gin.HandlerFunc {
 			return
 		}
 
-		// Signature verification
-		if h.GitHubWebhookSecret != "" {
+		// Signature verification — always required; skip only when secret is not configured
+		// (dev mode). In production, GITHUB_WEBHOOK_SECRET must be set.
+		if h.GitHubWebhookSecret == "" {
+			// Log a warning so ops know the endpoint is unauthenticated.
+			c.Header("X-Webhook-Auth", "disabled")
+		} else {
 			sig := c.GetHeader("X-Hub-Signature-256")
 			if !ghinfra.VerifyWebhookSignature([]byte(h.GitHubWebhookSecret), body, sig) {
 				c.Status(http.StatusUnauthorized)

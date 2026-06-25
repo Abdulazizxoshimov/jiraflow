@@ -165,6 +165,18 @@ func (r *sprintRepo) AddIssue(ctx context.Context, sprintID, issueID string) err
 	return err
 }
 
+func (r *sprintRepo) BulkAddIssues(ctx context.Context, sprintID string, issueIDs []string) error {
+	if len(issueIDs) == 0 {
+		return nil
+	}
+	_, err := r.db.Exec(ctx,
+		`UPDATE issues SET sprint_id = $1, updated_at = NOW()
+		 WHERE id = ANY($2::uuid[]) AND deleted_at IS NULL`,
+		sprintID, issueIDs,
+	)
+	return err
+}
+
 func (r *sprintRepo) RemoveIssue(ctx context.Context, sprintID, issueID string) error {
 	sql, args, err := r.builder.
 		Update("issues").
@@ -375,7 +387,7 @@ func (r *sprintRepo) GetCFD(ctx context.Context, projectID string, from, to *str
 		SELECT DISTINCT ws.id, ws.name FROM workflow_statuses ws
 		JOIN workflows w ON w.id = ws.workflow_id
 		JOIN projects p ON p.workflow_id = w.id
-		WHERE p.id = $1 AND ws.deleted_at IS NULL
+		WHERE p.id = $1
 		ORDER BY ws.name`, projectID)
 	if err != nil {
 		return nil, err
@@ -394,8 +406,8 @@ func (r *sprintRepo) GetCFD(ctx context.Context, projectID string, from, to *str
 
 	// Daily counts per status
 	query := fmt.Sprintf(`
-		SELECT gs::date AS day, i.status_id, COUNT(*) AS cnt
-		FROM generate_series(%s::date, %s::date, '1 day'::interval) gs
+		SELECT to_char(gs, 'YYYY-MM-DD') AS day, i.status_id, COUNT(*) AS cnt
+		FROM generate_series((%s)::date, (%s)::date, '1 day'::interval) gs
 		JOIN issues i ON i.project_id = $1 AND i.deleted_at IS NULL
 			AND i.created_at::date <= gs::date
 		GROUP BY gs, i.status_id

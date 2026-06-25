@@ -67,7 +67,7 @@ func (r *auditRepo) List(ctx context.Context, filter *entity.AuditLogFilter) ([]
 	}
 
 	dataSQL, dataArgs, _ := r.builder.
-		Select("id", "user_id", "action", "entity_type", "entity_id", "details", "ip_address", "user_agent", "created_at").
+		Select("id", "user_id", "action", "entity_type", "entity_id", "details", "ip_address::text", "user_agent", "created_at").
 		From("audit_logs").Where(where).
 		OrderBy("created_at DESC").
 		Limit(uint64(filter.GetLimit())).Offset(uint64(filter.Offset())).ToSql()

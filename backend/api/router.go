@@ -1,6 +1,12 @@
 package api
 
 import (
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -9,12 +15,36 @@ import (
 	"github.com/jira-backend/jiraflow-backend/api/handlers"
 	v1 "github.com/jira-backend/jiraflow-backend/api/handlers/v1"
 	"github.com/jira-backend/jiraflow-backend/api/middleware"
+	"github.com/jira-backend/jiraflow-backend/internal/infrastructure/repository"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/logger"
 	"github.com/jira-backend/jiraflow-backend/internal/pkg/token"
 )
 
-func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enforcer, log logger.Logger) *gin.Engine {
+func envFloat(key string, def float64) float64 {
+	if v := os.Getenv(key); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+	}
+	return def
+}
+
+func envInt(key string, def int) int {
+	if v := os.Getenv(key); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return def
+}
+
+func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enforcer, log logger.Logger, readyFn func() error, auditRepo repository.AuditRepository) *gin.Engine {
 	r := gin.New()
+
+	allowedOrigins := []string{}
+	if frontendURL := os.Getenv("FRONTEND_BASE_URL"); frontendURL != "" {
+		allowedOrigins = append(allowedOrigins, frontendURL)
+	}
 
 	r.Use(
 		middleware.Sentry(),
@@ -22,18 +52,32 @@ func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enf
 		gin.Logger(),
 		middleware.Logger(log),
 		middleware.Recover(log),
-		middleware.CORS(),
+		middleware.CORS(allowedOrigins...),
+		middleware.SecurityHeaders(),
 	)
+
+	r.MaxMultipartMemory = 10 << 20 // 10 MB multipart
+
+	// Limit JSON body size to 2 MB
+	r.Use(func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 2<<20)
+		c.Next()
+	})
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.GET("/health", v1.HealthCheck())
+	r.GET("/ready", v1.ReadyCheck(readyFn))
 
 	auth := middleware.Auth(tokenMaker)
+	rbac := middleware.EnforceCasbin(enforcer, log)
+
+	rps := envFloat("RATE_LIMIT_RPS", 30)
+	burst := envInt("RATE_LIMIT_BURST", 60)
 
 	api := r.Group("/api/v1")
 
-	// Auth (public)
-	authGroup := api.Group("/auth")
+	// Auth (public) — strict IP-based rate limit to prevent brute-force
+	authGroup := api.Group("/auth", middleware.RateLimit(5, 10))
 	{
 		authGroup.POST("/register", v1.Register(h))
 		authGroup.POST("/login", v1.Login(h))
@@ -45,6 +89,9 @@ func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enf
 	// Public invite accept
 	api.POST("/invites/accept", v1.AcceptInvite(h))
 
+	// Public file proxy (redirect to MinIO presigned URL — used for avatars in <img> tags)
+	api.GET("/files/proxy", v1.ServeFileProxy(h))
+
 	// Public Telegram webhook
 	api.POST("/telegram/webhook", v1.TelegramWebhook(h))
 
@@ -52,7 +99,7 @@ func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enf
 	api.POST("/github/webhook", v1.GitHubWebhook(h))
 
 	// Protected routes
-	protected := api.Group("/", auth, middleware.RateLimitByUser(30, 60))
+	protected := api.Group("/", auth, rbac, middleware.RateLimitByUser(rps, burst), middleware.AuditLog(auditRepo))
 
 	// Auth me/logout
 	protected.POST("/auth/logout", v1.Logout(h))
@@ -60,7 +107,7 @@ func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enf
 
 	// Telegram
 	protected.GET("/auth/telegram/status", v1.GetTelegramStatus(h))
-	protected.POST("/auth/telegram/connect", v1.GenerateTelegramCode(h))
+	protected.POST("/auth/telegram/verify", v1.VerifyTelegramCode(h))
 	protected.DELETE("/auth/telegram/disconnect", v1.DisconnectTelegram(h))
 
 	// Users
@@ -68,8 +115,13 @@ func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enf
 	{
 		users.GET("", v1.ListUsers(h))
 		users.POST("", v1.CreateUser(h))
+		users.GET("/me", v1.GetCurrentUser(h))
+		users.PUT("/me", v1.UpdateCurrentUser(h))
+		users.PUT("/me/password", v1.ChangeCurrentPassword(h))
+		users.POST("/me/avatar", v1.UploadAvatar(h))
 		users.GET("/:id", v1.GetUser(h))
 		users.PUT("/:id", v1.UpdateUser(h))
+		users.DELETE("/:id", v1.DeleteUser(h))
 		users.POST("/:id/deactivate", v1.DeactivateUser(h))
 		users.POST("/:id/activate", v1.ActivateUser(h))
 		users.PUT("/:id/password", v1.ChangePassword(h))
@@ -208,6 +260,7 @@ func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enf
 	issues := protected.Group("/issues")
 	{
 		issues.PUT("/reorder", v1.ReorderIssues(h))
+		issues.POST("/bulk", v1.BulkCreateIssues(h))
 		issues.PUT("/bulk", v1.BulkUpdateIssues(h))
 		issues.DELETE("/bulk", v1.BulkDeleteIssues(h))
 		issues.POST("", v1.CreateIssue(h))
@@ -655,6 +708,36 @@ func NewRouter(h *handlers.Handler, tokenMaker token.Maker, enforcer *casbin.Enf
 		automationRules.POST("/:id/disable", v1.DisableAutomationRule(h))
 		automationRules.GET("/:id/logs", v1.ListAutomationLogs(h))
 	}
+
+	// Admin — Telegram bot management
+	adminTelegram := protected.Group("/admin/telegram")
+	{
+		adminTelegram.GET("/info", v1.GetTelegramBotInfo(h))
+		adminTelegram.POST("/webhook", v1.SetupTelegramWebhook(h))
+		adminTelegram.DELETE("/webhook", v1.DeleteTelegramWebhook(h))
+	}
+
+	// Serve frontend static files. FRONTEND_DIR env var overrides default.
+	frontendDir := os.Getenv("FRONTEND_DIR")
+	if frontendDir == "" {
+		frontendDir = filepath.Join("..", "frontend")
+	}
+	r.NoRoute(func(c *gin.Context) {
+		p := c.Request.URL.Path
+		// Let /api/v1/* and /swagger/* routes 404 normally
+		if strings.HasPrefix(p, "/api/v1") || strings.HasPrefix(p, "/swagger") {
+			c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+			return
+		}
+		// Try serving the exact file first (jsx, css, fonts, etc.)
+		candidate := filepath.Join(frontendDir, filepath.Clean(p))
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			c.File(candidate)
+			return
+		}
+		// SPA fallback
+		c.File(filepath.Join(frontendDir, "index.html"))
+	})
 
 	return r
 }
